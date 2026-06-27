@@ -1025,6 +1025,18 @@ td.num { text-align: right; font-family: var(--mono); }
   .invoice-total th, .invoice-total td { font-weight: 800; font-size: 14px; background: #eef1fb; }
   .invoice-note { font-size: 10px; color: #444; margin-top: 8px; line-height: 1.5; }
   .invoice-footer { margin-top: 34px; font-size: 9px; color: #888; border-top: 1px solid #ccc; padding-top: 8px; }
+
+  /* ── Facture consolidée (plusieurs véhicules, une seule facture) ────── */
+  .invoice-items { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 18px; }
+  .invoice-items thead th {
+    text-align: left; font-weight: 700; padding: 7px 8px; border: 1px solid #000;
+    background: #111; color: #fff; font-size: 9px; text-transform: uppercase; letter-spacing: .03em;
+  }
+  .invoice-items tbody td { padding: 6px 8px; border: 1px solid #999; }
+  .invoice-items td.num, .invoice-items th.num { text-align: right; }
+  .invoice-items tfoot td { font-weight: 800; font-size: 13px; background: #eef1fb; border: 1px solid #000; padding: 8px 9px; }
+  .invoice-payment { margin-top: 26px; font-size: 11px; line-height: 1.7; }
+  .invoice-payment strong { display: block; margin-bottom: 4px; text-transform: uppercase; font-size: 10px; letter-spacing: .03em; }
 }
 
 </style>
@@ -1152,7 +1164,7 @@ td.num { text-align: right; font-family: var(--mono); }
       <div class="bandeau bandeau-ok" role="note">
         Entité à facturer : <strong>CH. POZZI</strong> — SIREN 525580288 — SIRET 52558028800146<br>
         12-14 Place du Général Koenig, 75017 Paris — Convention d'apporteur d'affaires signée le
-        <strong id="bmw-contract-date" data-source="CONFIG.contracts.BMW_POZZI.signedDate">—</strong>
+        <strong id="bmw-contract-date" data-source="state.contracts.BMW_POZZI.signedDate (transmis par le Worker)">—</strong>
       </div>
       <div class="bandeau bandeau-warn hidden" id="bmw-contract-alert" role="alert"></div>
 
@@ -1161,7 +1173,7 @@ td.num { text-align: right; font-family: var(--mono); }
           </label>
           <div class="rate-row">
             <input type="number" step="0.01" min="0" max="100" class="rate-input" id="rate-bmw" value="" disabled
-              aria-label="Taux de commission BMW en pourcentage, valeur contractuelle non modifiable" data-source="CONFIG.contracts.BMW_POZZI.rate">
+              aria-label="Taux de commission BMW en pourcentage, valeur contractuelle non modifiable" data-source="state.contracts.BMW_POZZI.rate (transmis par le Worker)">
             <span class="param-text">%</span>
           </div>
         </div>
@@ -1176,6 +1188,10 @@ td.num { text-align: right; font-family: var(--mono); }
       </div>
 
       <div class="panel-actions">
+        <button type="button" class="tb-btn" id="consolidated-invoice-btn">
+          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm6.293-2.707a1 1 0 001.414 0l4-4a1 1 0 10-1.414-1.414L11 11.586V3a1 1 0 10-2 0v8.586L6.707 9.293a1 1 0 10-1.414 1.414l4 4z" clip-rule="evenodd"/></svg>
+          Facture consolidée
+        </button>
         <button type="button" class="tb-btn add-vehicle-btn" data-concession="BMW_POZZI">
           <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/></svg>
           Ajouter un véhicule
@@ -1200,7 +1216,7 @@ td.num { text-align: right; font-family: var(--mono); }
       <div class="params-row" id="params-ford"></label>
           <div class="rate-row">
             <input type="number" step="0.01" min="0" max="100" class="rate-input" id="rate-ford" value=""
-              aria-label="Taux de commission Ford en pourcentage — simulation locale, non sauvegardée" data-source="CONFIG.contracts.FORD_VILLENEUVE.rate">
+              aria-label="Taux de commission Ford en pourcentage — simulation locale, non sauvegardée" data-source="state.contracts.FORD_VILLENEUVE.rate (transmis par le Worker)">
             <span class="param-text">%</span>
           </div>
           <span class="field-hint">Valeur de travail non persistée sur GitHub — réinitialisée à chaque session.</span>
@@ -1369,7 +1385,46 @@ td.num { text-align: right; font-family: var(--mono); }
   </div>
 </dialog>
 
+<!-- ============================================================
+     DIALOG — Facture consolidée (plusieurs véhicules, une facture)
+============================================================ -->
+<dialog id="consolidated-invoice-dialog" class="app-dialog" aria-label="Facture consolidée">
+  <header class="dialog-head">
+    <h2>Facture consolidée — BMW Ch.Pozzi</h2>
+    <button type="button" class="dialog-close" id="consolidated-invoice-dialog-close" aria-label="Fermer la fenêtre">✕</button>
+  </header>
+  <div class="dialog-body">
+    <p class="field-hint" style="margin-bottom:14px;">
+      Sélectionnez les véhicules Facturables à regrouper sur une seule facture.
+      Document de travail destiné à votre outil de facturation — pas une facture
+      légale émise automatiquement (numéro et dates restent sous votre contrôle).
+    </p>
+    <div class="auth-field" style="display:flex; gap:12px; flex-wrap:wrap;">
+      <div>
+        <label class="auth-lbl" for="ci-numero">N° de facture</label>
+        <input class="auth-inp" id="ci-numero" placeholder="F-2026-00X" style="width:140px;">
+      </div>
+      <div>
+        <label class="auth-lbl" for="ci-emission">Date d'émission</label>
+        <input class="auth-inp" type="date" id="ci-emission" style="width:150px;">
+      </div>
+      <div>
+        <label class="auth-lbl" for="ci-echeance">Date d'échéance</label>
+        <input class="auth-inp" type="date" id="ci-echeance" style="width:150px;">
+        <span class="field-hint">Calculée automatiquement à +15 jours (Art.8 de la convention) — modifiable.</span>
+      </div>
+    </div>
+    <div id="consolidated-invoice-list" style="margin:14px 0; max-height:280px; overflow-y:auto; border:1px solid var(--brd); border-radius:var(--rs);"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <span class="field-hint">Total sélectionné : <strong id="consolidated-invoice-total">0,00 €</strong></span>
+      <button type="button" class="tb-btn sm" id="consolidated-invoice-selectall">Tout sélectionner</button>
+    </div>
+    <button type="button" class="auth-btn" id="consolidated-invoice-generate">Générer et imprimer la facture</button>
+  </div>
+</dialog>
+
 <div id="invoice-print-area" class="print-only" aria-hidden="true"></div>
+
 
 
 <script>
@@ -2010,6 +2065,7 @@ async function bootApp() {
   setupExport();
   setupImport();
   setupAddVehicle();
+  setupConsolidatedInvoice();
   setupAutoSave();
 }
 
@@ -2126,7 +2182,7 @@ function printInvoice(id, concession) {
     return;
   }
 
-  const rate       = CONFIG.contracts.BMW_POZZI.rate;
+  const rate       = state.contracts.BMW_POZZI.rate; // bug corrigé : CONFIG.contracts n'existe pas à l'exécution
   const valeur     = Number(v.valeur_vente_ht) || 0;
   const commission = +(valeur * rate / 100).toFixed(2);
   const today      = new Date().toLocaleDateString("fr-FR");
@@ -2187,6 +2243,173 @@ function printInvoice(id, concession) {
 
       <footer class="invoice-footer">
         Document généré automatiquement par ZEEV CARS le ${esc(today)} — à vérifier avant envoi officiel.
+      </footer>
+    </div>`;
+
+  document.body.classList.add("printing-invoice");
+  window.print();
+}
+
+/* =====================================================================
+   FACTURE CONSOLIDÉE — fonctionnalité demandée explicitement. Regroupe
+   plusieurs véhicules Facturables sur un seul document. Réutilise
+   exactement le même calcul que partout ailleurs (CONFIG.contracts.rate ×
+   valeur_vente_ht) — aucune formule dupliquée avec une logique différente.
+   Reste un document de travail (numéro/dates saisis manuellement), dans la
+   même logique que l'export CSV existant : base de calcul, pas facture
+   légale émise automatiquement par le logiciel.
+   ===================================================================== */
+function isoToday() { return new Date().toISOString().slice(0, 10); }
+function addDaysIso(iso, days) {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function setupConsolidatedInvoice() {
+  const btn          = document.getElementById("consolidated-invoice-btn");
+  const dialog        = document.getElementById("consolidated-invoice-dialog");
+  const closeBtn      = document.getElementById("consolidated-invoice-dialog-close");
+  const listEl        = document.getElementById("consolidated-invoice-list");
+  const totalEl       = document.getElementById("consolidated-invoice-total");
+  const selectAllBtn  = document.getElementById("consolidated-invoice-selectall");
+  const generateBtn   = document.getElementById("consolidated-invoice-generate");
+  const numeroEl       = document.getElementById("ci-numero");
+  const emissionEl     = document.getElementById("ci-emission");
+  const echeanceEl     = document.getElementById("ci-echeance");
+  if (!btn || !dialog) return;
+
+  function refreshTotal() {
+    let total = 0;
+    listEl.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+      total += parseFloat(cb.dataset.commission || "0");
+    });
+    totalEl.textContent = fmtEUR(total);
+  }
+
+  function openDialog() {
+    const vehicules = getVehicules("BMW_POZZI").filter(v => computeEligibilite(v) === "FACTURABLE");
+    if (vehicules.length === 0) {
+      toast("Aucun véhicule Facturable pour le moment (voir colonne Éligibilité).", "error");
+      return;
+    }
+    emissionEl.value = isoToday();
+    echeanceEl.value = addDaysIso(isoToday(), 15);
+    numeroEl.value = "";
+
+    listEl.innerHTML = vehicules.map(v => {
+      const commission = computeCommission(v);
+      return `
+        <label style="display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid var(--brd); font-size:12px; cursor:pointer;">
+          <input type="checkbox" checked data-id="${esc(v.id)}" data-commission="${commission}">
+          <span style="flex:1;">${esc(v.client)} — ${esc(v.modele || "")}${v.immat ? " (" + esc(v.immat) + ")" : ""}</span>
+          <strong>${fmtEUR(commission)}</strong>
+        </label>`;
+    }).join("");
+    listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener("change", refreshTotal));
+    refreshTotal();
+    dialog.showModal();
+  }
+
+  btn.addEventListener("click", openDialog);
+  closeBtn.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+  selectAllBtn.addEventListener("click", () => {
+    listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+    refreshTotal();
+  });
+
+  generateBtn.addEventListener("click", () => {
+    const checked = Array.from(listEl.querySelectorAll('input[type="checkbox"]:checked'));
+    if (checked.length === 0) { toast("Sélectionnez au moins un véhicule.", "error"); return; }
+    if (!numeroEl.value.trim()) { numeroEl.focus(); toast("Indiquez un numéro de facture.", "error"); return; }
+
+    const ids = checked.map(cb => cb.dataset.id);
+    const vehicules = ids.map(id => state.data.vehicules.find(x => x.id === id)).filter(Boolean);
+    renderConsolidatedInvoice({
+      numero: numeroEl.value.trim(),
+      emission: emissionEl.value,
+      echeance: echeanceEl.value,
+      vehicules,
+    });
+    dialog.close();
+  });
+}
+
+function renderConsolidatedInvoice({ numero, emission, echeance, vehicules }) {
+  const rate = state.contracts.BMW_POZZI.rate; // source correcte : transmise par le Worker
+  let totalHT = 0;
+  const rows = vehicules.map((v, i) => {
+    const valeur     = Number(v.valeur_vente_ht) || 0;
+    const commission = +(valeur * rate / 100).toFixed(2);
+    totalHT += commission;
+    return `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${esc(v.client)}</td>
+        <td>${esc(v.immat) || "—"}</td>
+        <td class="num">${fmtEUR(valeur)}</td>
+        <td class="num">${rate.toFixed(2)} %</td>
+        <td class="num">${fmtEUR(commission)}</td>
+      </tr>`;
+  }).join("");
+
+  document.getElementById("invoice-print-area").innerHTML = `
+    <div class="invoice-doc">
+      <header class="invoice-head">
+        <div class="invoice-brand">ZEEV<span>CARS</span></div>
+        <div class="invoice-meta">
+          <div>Numéro de facture : ${esc(numero)}</div>
+          <div>Date d'émission : ${esc(fmtDateISOtoFR(emission))}</div>
+          <div>Date d'échéance : ${esc(fmtDateISOtoFR(echeance))}</div>
+        </div>
+      </header>
+
+      <section class="invoice-parties">
+        <div>
+          <strong>Émetteur</strong><br>
+          ZEEV CARS — SASU au capital de 50 €<br>
+          RCS Paris n°105 926 158 — SIRET 105 926 158 00012<br>
+          47 rue Vivienne, 75002 Paris
+        </div>
+        <div>
+          <strong>Destinataire</strong><br>
+          CH. POZZI — SAS au capital de 3 000 000 €<br>
+          RCS Paris n°525 580 288 — SIRET 525 580 288 00146<br>
+          12-14 Place du Général Koenig, 75017 Paris
+        </div>
+      </section>
+
+      <table class="invoice-items">
+        <thead>
+          <tr>
+            <th>N°</th><th>Client</th><th>Immatriculation</th>
+            <th class="num">Valeur de vente HT</th><th class="num">Taux</th><th class="num">Commission HT</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr><td colspan="5">Total HT</td><td class="num">${fmtEUR(totalHT)}</td></tr>
+        </tfoot>
+      </table>
+
+      <p class="invoice-note">
+        TVA non applicable — Article 263 du CGI - Activités intermédiaires. Type de transaction : Services.<br>
+        Commission due en application de la convention d'apporteur d'affaires signée le 09/06/2026 (Art.5), calculée sur
+        le montant HT du contrat de location signé par le client (hors assurances, frais administratifs et taxes) —
+        condition de déclenchement : encaissement effectif de l'opération.<br>
+        Pas d'escompte accordé pour paiement anticipé. En cas de non-paiement à la date d'échéance, des pénalités
+        calculées à trois fois le taux d'intérêt légal seront appliquées. Tout retard de paiement entraînera une
+        indemnité forfaitaire pour frais de recouvrement de 40 €.
+      </p>
+
+      <div class="invoice-payment">
+        <strong>Détails du paiement</strong>
+        Coordonnées bancaires : voir document séparé transmis au destinataire.
+      </div>
+
+      <footer class="invoice-footer">
+        ZEEV CARS, SAS — ${esc(numero)} · 1/1 — Document de travail (base de calcul de commission), à vérifier avant envoi officiel.
       </footer>
     </div>`;
 
