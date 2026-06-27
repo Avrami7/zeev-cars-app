@@ -1661,6 +1661,21 @@ function computeCommission(v) {
    opposable. C'est le PV signé qui sécurise juridiquement la facturation,
    en complément de l'encaissement effectif (Art.5 — condition contractuelle
    de déclenchement de la commission). */
+/* Texte d'infobulle expliquant pourquoi l'éligibilité a sa valeur actuelle —
+   purement informatif, ne change aucune règle de calcul. Répond à une
+   confusion légitime : "Éligibilité" est un résultat dérivé, pas un champ à
+   remplir directement (contrairement à ses 3 colonnes sources). */
+function eligibiliteHint(v) {
+  const checks = [
+    { label: "Statut livraison = Livré",            ok: v.statut_livraison === "LIVRE" },
+    { label: "PV de mise à disposition = Signé",     ok: v.pv_signe === "SIGNE" },
+    { label: "Statut paiement = Payé",                ok: v.statut_paiement === "PAYE" },
+  ];
+  const missing = checks.filter(c => !c.ok).map(c => c.label);
+  if (missing.length === 0) return "Calculé automatiquement depuis 3 colonnes — toutes les conditions sont remplies, ce véhicule est Facturable.";
+  return "Calculé automatiquement depuis 3 colonnes (non modifiable directement ici). Pour le faire évoluer, modifiez plutôt : " + missing.join(" · ") + ".";
+}
+
 function computeEligibilite(v) {
   if (v.statut_livraison !== "LIVRE") return "ATTENTE_LIVRAISON";
   if (v.pv_signe !== "SIGNE") return "ATTENTE_PV";
@@ -2347,7 +2362,12 @@ function renderConcessionPanel(concession, tableId, kpiId) {
        simulation ? "Commission HT (simulation)" : "Commission HT",
        "Éligibilité", "Facture", "Remarques", "Source", "Dernière MAJ"];
 
-  let html = "<thead><tr>" + headers.map(h => `<th scope="col">${h}</th>`).join("") + "</tr></thead><tbody>";
+  const COMPUTED_HEADER_HINT = "Colonne calculée automatiquement — non modifiable directement. Voir l'infobulle de chaque ligne pour le détail.";
+  const isComputedHeader = h => h === "Éligibilité" || h.startsWith("Commission HT");
+  let html = "<thead><tr>" + headers.map(h =>
+    `<th scope="col"${isComputedHeader(h) ? ` title="${esc(COMPUTED_HEADER_HINT)}"` : ""}>${h}${isComputedHeader(h) ? ' <span aria-hidden="true" style="opacity:.6;">ⓘ</span>' : ""}</th>`
+  ).join("") + "</tr></thead><tbody>";
+
 
   vehicules.forEach((v, i) => {
     const commission  = computeCommission(v);
@@ -2388,8 +2408,8 @@ function renderConcessionPanel(concession, tableId, kpiId) {
       html += cellInput(v.id, "numero_facture", v.numero_facture, canEdit, "text");
       html += cellInput(v.id, "date_facture",   v.date_facture,   canEdit, "date");
 
-      html += `<td class="num" data-col="commission">${fmtEUR(commission)}</td>`;
-      html += `<td data-col="eligibilite">${badge(eligibilite, LABELS.eligibilite, BADGE_CLASS)}</td>`;
+      html += `<td class="num" data-col="commission" title="Calculé automatiquement : Valeur de vente HT × taux contractuel, uniquement si le véhicule est Facturable (voir Éligibilité).">${fmtEUR(commission)}</td>`;
+      html += `<td data-col="eligibilite" title="${esc(eligibiliteHint(v))}">${badge(eligibilite, LABELS.eligibilite, BADGE_CLASS)}</td>`;
       html += `<td><button type="button" class="invoice-btn" data-invoice-id="${esc(v.id)}"
         ${canInvoice ? "" : "disabled"} title="${invoiceTitle}" aria-label="Imprimer la facture">🖨</button></td>`;
     }
@@ -2458,7 +2478,10 @@ function attachCellHandlers(tableId, concession) {
         const commissionCell  = row.querySelector('[data-col="commission"]');
         const eligibiliteCell = row.querySelector('[data-col="eligibilite"]');
         if (commissionCell)  commissionCell.textContent  = fmtEUR(commission);
-        if (eligibiliteCell) eligibiliteCell.innerHTML    = badge(eligibilite, LABELS.eligibilite, BADGE_CLASS);
+        if (eligibiliteCell) {
+          eligibiliteCell.innerHTML = badge(eligibilite, LABELS.eligibilite, BADGE_CLASS);
+          eligibiliteCell.title     = eligibiliteHint(v);
+        }
       }
       setSyncStatus("Modifications non enregistrées", "dirty");
     };
