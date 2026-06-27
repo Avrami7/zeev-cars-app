@@ -780,21 +780,74 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 table.data-table {
   border-collapse: collapse; width: 100%;
   font-size: 11.5px; min-width: 1450px;
+  table-layout: auto;
 }
 table.data-table thead th {
   background: var(--sur2); color: var(--tx3);
   font-weight: 700; font-size: 9.5px;
   text-transform: uppercase; letter-spacing: .04em;
-  padding: 8px; text-align: left;
-  position: sticky; top: 0; white-space: nowrap;
+  padding: 8px; text-align: center;
+  position: sticky; top: 0;
+  /* Un en-tête long (ex. "Valeur de vente du véhicule HT (€)") ne doit plus
+     forcer toute la colonne à s'élargir démesurément : il se met sur 2 lignes
+     plutôt que d'imposer sa largeur au contenu (qui, lui, est court : un
+     simple nombre). */
+  white-space: normal; line-height: 1.25; max-width: 130px;
   border: 1px solid var(--brd2);
+  position: relative;
 }
+/* Poignée de redimensionnement manuel (façon Excel) — voir script ZONE DESIGN
+   en fin de fichier pour le comportement de glisser-déposer. Purement visuel
+   tant qu'aucun glissement n'est en cours. */
+table.data-table thead th .col-resizer {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 6px;
+  cursor: col-resize; user-select: none; touch-action: none;
+  background: transparent;
+}
+table.data-table thead th .col-resizer:hover,
+table.data-table thead th .col-resizer.resizing { background: var(--ac); opacity: .5; }
+
 table.data-table tbody td {
   padding: 7px 8px;
   border: 1px solid var(--brd);
   white-space: nowrap; color: var(--tx2);
+  text-align: center;
   transition: background .2s var(--ease), box-shadow .2s var(--ease);
 }
+/* Colonnes texte libre : on garde l'alignement à gauche, plus lisible que
+   centré pour un nom de client ou une remarque longue. */
+table.data-table tbody td:has(input[data-field="client"]),
+table.data-table tbody td:has(input[data-field="conducteur"]),
+table.data-table tbody td:has(input[data-field="modele"]),
+table.data-table tbody td:has(input[data-field="remarques"]),
+table.data-table tbody td:has(input[data-field="source"]) {
+  text-align: left;
+}
+input.cell-input[data-field="client"],
+input.cell-input[data-field="conducteur"],
+input.cell-input[data-field="modele"],
+input.cell-input[data-field="remarques"],
+input.cell-input[data-field="source"] { text-align: left; min-width: 130px; }
+
+/* Largeurs ciblées par champ — corrige : (1) les codes courts (immatriculation,
+   VIN) qui étaient tronqués dans une case trop étroite, (2) les colonnes
+   numériques/dates qui occupaient une largeur excessive héritée d'un en-tête
+   long alors que leur contenu est court. Ciblage via [data-field] : robuste
+   même si l'ordre des colonnes change (scope restreint/complet), car cet
+   attribut est déjà posé par cellInput()/cellSelect() sans qu'il soit besoin
+   d'y toucher. */
+input.cell-input[data-field="immat"]            { min-width: 100px; }
+input.cell-input[data-field="vin"]              { min-width: 150px; }
+input.cell-input[data-field="valeur_vente_ht"]  { max-width: 100px; margin: 0 auto; }
+input.cell-input[data-field="numero_facture"]   { max-width: 110px; margin: 0 auto; }
+input.cell-input[data-field="date_livraison"],
+input.cell-input[data-field="date_pv_signe"],
+input.cell-input[data-field="date_facture"]     { max-width: 130px; margin: 0 auto; }
+select.cell-input[data-field="statut_livraison"],
+select.cell-input[data-field="pv_signe"],
+select.cell-input[data-field="statut_paiement"],
+select.cell-input[data-field="statut_facturation"] { max-width: 150px; margin: 0 auto; }
+
 table.data-table tbody tr:hover td {
   background: rgba(255,255,255,.03);
   box-shadow: inset 2px 0 0 0 var(--ac);
@@ -1057,6 +1110,11 @@ td.num { text-align: right; font-family: var(--mono); }
         <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm6.293-2.707a1 1 0 001.414 0l4-4a1 1 0 10-1.414-1.414L11 11.586V3a1 1 0 10-2 0v8.586L6.707 9.293a1 1 0 10-1.414 1.414l4 4z" clip-rule="evenodd"/></svg>
         Export CSV
       </button>
+      <button id="import-btn" class="tb-btn" type="button" title="Importer un fichier CSV pour mettre à jour les véhicules en masse (mêmes colonnes que l'export)">
+        <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm7-12.586l3.293 3.293a1 1 0 11-1.414 1.414L11 8.414V15a1 1 0 11-2 0V8.414L8.121 9.121a1 1 0 11-1.414-1.414L10 4.414z" clip-rule="evenodd"/></svg>
+        Importer CSV
+      </button>
+      <input type="file" id="import-file-input" accept=".csv,text/csv" class="hidden" aria-hidden="true">
       <div class="tb-sep" role="separator"></div>
       <button id="logout-btn" class="tb-btn danger" type="button">
         <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"/></svg>
@@ -1824,6 +1882,7 @@ async function bootApp() {
   setupPrint();
   setupUsersAdmin();
   setupExport();
+  setupImport();
 }
 
 function refreshOwnerUI() {
@@ -2399,6 +2458,186 @@ window.addEventListener("beforeunload", (e) => {
     span.addEventListener('animationend', () => span.remove());
   }, { passive: true });
 })();
+
+/* =====================================================================
+   REDIMENSIONNEMENT MANUEL DES COLONNES (façon Excel) — ZONE DESIGN/UX
+   Purement visuel : ajoute une poignée de glisser-déposer sur chaque <th>
+   et ajuste sa largeur ainsi que celle des cellules de la même colonne.
+   N'écrit dans aucune donnée, ne lit pas state.data, n'interfère avec
+   aucune logique de calcul ou de sauvegarde.
+   ===================================================================== */
+(function setupColumnResize() {
+  let drag = null;
+
+  function injectResizers(theadRow) {
+    if (!theadRow) return;
+    theadRow.querySelectorAll('th').forEach(th => {
+      if (th.querySelector('.col-resizer')) return;
+      const handle = document.createElement('span');
+      handle.className = 'col-resizer';
+      handle.setAttribute('aria-hidden', 'true');
+      th.appendChild(handle);
+      handle.addEventListener('mousedown', onResizeStart);
+    });
+  }
+
+  function onResizeStart(e) {
+    const th = e.target.parentElement;
+    const table = th.closest('table');
+    if (!table) return;
+    const colIndex = Array.from(th.parentElement.children).indexOf(th);
+    drag = { table, colIndex, startX: e.clientX, startWidth: th.getBoundingClientRect().width, handle: e.target };
+    e.target.classList.add('resizing');
+    document.addEventListener('mousemove', onResizeMove);
+    document.addEventListener('mouseup', onResizeEnd);
+    e.preventDefault();
+  }
+
+  function onResizeMove(e) {
+    if (!drag) return;
+    const newWidth = Math.max(40, Math.round(drag.startWidth + (e.clientX - drag.startX)));
+    const th = drag.table.querySelectorAll('thead th')[drag.colIndex];
+    if (th) { th.style.width = newWidth + 'px'; th.style.maxWidth = 'none'; }
+    drag.table.querySelectorAll('tbody tr').forEach(tr => {
+      const cell = tr.children[drag.colIndex];
+      if (cell) cell.style.width = newWidth + 'px';
+    });
+  }
+
+  function onResizeEnd() {
+    if (drag && drag.handle) drag.handle.classList.remove('resizing');
+    drag = null;
+    document.removeEventListener('mousemove', onResizeMove);
+    document.removeEventListener('mouseup', onResizeEnd);
+  }
+
+  // Les tableaux sont entièrement régénérés (innerHTML) à chaque rendu —
+  // on observe leur contenu pour réinjecter les poignées automatiquement,
+  // sans jamais modifier les fonctions de rendu existantes.
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach(m => {
+      const table = m.target.closest ? m.target.closest('table') : null;
+      const thead = table ? table.querySelector('thead tr') : null;
+      if (thead) injectResizers(thead);
+    });
+  });
+  document.querySelectorAll('table.data-table').forEach(t => {
+    observer.observe(t, { childList: true, subtree: true });
+    injectResizers(t.querySelector('thead tr'));
+  });
+})();
+
+/* =====================================================================
+   IMPORT CSV — fonctionnalité demandée explicitement (mise à jour en masse
+   des véhicules depuis un fichier Excel/CSV exporté par "Export CSV").
+   Important : ceci ne touche à AUCUNE formule. Les colonnes calculées
+   (taux_commission_pct, montant_commission_ht) sont ignorées à l'import —
+   elles restent calculées uniquement par computeCommission()/
+   computeEligibilite(), jamais écrasées par une valeur importée. Seuls les
+   champs bruts modifiables à la main (les mêmes que ceux édités cellule par
+   cellule) sont mis à jour, puis le flux normal (state.dirty + bouton
+   "Enregistrer sur GitHub") prend le relais — aucun nouveau chemin d'écriture
+   vers GitHub n'est créé.
+   ===================================================================== */
+const CSV_IMPORT_WRITABLE_FIELDS = new Set([
+  "client", "conducteur", "modele", "immat", "vin",
+  "statut_livraison", "date_livraison", "pv_signe",
+  "valeur_vente_ht", "statut_paiement", "statut_facturation",
+  "numero_facture", "date_facture",
+]);
+const CSV_IMPORT_KNOWN_READONLY_FIELDS = new Set([
+  "concession", "raison_sociale", "taux_commission_pct", "montant_commission_ht",
+]);
+
+function parseCsvSemicolon(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM ajouté par l'export
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false; }
+      else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ';') { row.push(field); field = ""; }
+    else if (c === '\r') { /* géré avec \n */ }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ""; }
+    else field += c;
+  }
+  if (field !== "" || row.length > 0) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(cell => cell !== ""));
+}
+
+function setupImport() {
+  const btn = document.getElementById("import-btn");
+  const fileInput = document.getElementById("import-file-input");
+  if (!btn || !fileInput) return;
+
+  btn.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files[0];
+    fileInput.value = "";
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const rows = parseCsvSemicolon(text);
+      if (rows.length < 2) throw new Error("Fichier vide ou illisible.");
+
+      const headerRow = rows[0].map(h => h.trim());
+      const idIdx = headerRow.indexOf("id");
+      if (idIdx === -1) {
+        throw new Error('Colonne "id" introuvable. Utilisez un fichier issu de "Export CSV", en conservant la ligne d\'en-têtes.');
+      }
+
+      const ignoredCols = headerRow.filter((h, idx) =>
+        idx !== idIdx && !CSV_IMPORT_WRITABLE_FIELDS.has(h) && !CSV_IMPORT_KNOWN_READONLY_FIELDS.has(h));
+
+      let updated = 0, unknownIds = 0;
+      for (let r = 1; r < rows.length; r++) {
+        const cells = rows[r];
+        const id = (cells[idIdx] || "").trim();
+        if (!id) continue;
+        const v = state.data.vehicules.find(x => x.id === id);
+        if (!v) { unknownIds++; continue; }
+
+        let rowChanged = false;
+        headerRow.forEach((field, idx) => {
+          if (!CSV_IMPORT_WRITABLE_FIELDS.has(field)) return;
+          const raw = cells[idx] !== undefined ? cells[idx].trim() : "";
+          if (field === "valeur_vente_ht") {
+            const num = raw === "" ? null : parseFloat(raw.replace(",", "."));
+            if (v[field] !== num) { v[field] = num; rowChanged = true; }
+          } else if (v[field] !== raw) {
+            v[field] = raw; rowChanged = true;
+          }
+        });
+        if (rowChanged) {
+          v.maj_par = state.user.name;
+          v.maj_le  = new Date().toISOString().slice(0, 16).replace("T", " ");
+          updated++;
+        }
+      }
+
+      if (updated > 0) {
+        state.dirty = true;
+        updateSaveBtn();
+        renderAll();
+        setSyncStatus("Modifications non enregistrées", "dirty");
+      }
+
+      let msg = updated > 0
+        ? `${updated} véhicule(s) mis à jour depuis le fichier. Pensez à cliquer "Enregistrer sur GitHub" pour conserver ces changements.`
+        : "Aucune ligne n'a entraîné de modification.";
+      if (unknownIds > 0) msg += ` ${unknownIds} ligne(s) ignorée(s) (id absent du jeu de données actuel).`;
+      if (ignoredCols.length > 0) msg += ` Colonnes non importées (calculées automatiquement ou non modifiables) : ${ignoredCols.join(", ")}.`;
+      toast(msg, updated > 0 ? "success" : "error");
+    } catch (err) {
+      toast("Import impossible : " + err.message, "error");
+    }
+  });
+}
 
 
 </script>
