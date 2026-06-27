@@ -1154,6 +1154,7 @@ td.num { text-align: right; font-family: var(--mono); }
         12-14 Place du Général Koenig, 75017 Paris — Convention d'apporteur d'affaires signée le
         <strong id="bmw-contract-date" data-source="CONFIG.contracts.BMW_POZZI.signedDate">—</strong>
       </div>
+      <div class="bandeau bandeau-warn hidden" id="bmw-contract-alert" role="alert"></div>
 
       <div class="params-row" id="params-bmw">
             <span class="param-lock" title="Taux contractuel : source unique CONFIG.contracts, non modifiable en interface">🔒</span>
@@ -1541,11 +1542,52 @@ function applyContractConfig() {
   const rateBmwEl = document.getElementById("rate-bmw");
   if (rateBmwEl) {
     rateBmwEl.value = Number(bmw.rate).toFixed(2);
-    rateBmwEl.title = `Taux contractuel verrouillé côté serveur (${bmw.rate}%)`;
+    /* Le verrou suit désormais l'indicateur réel transmis par le Worker
+       (source unique : CONTRACTS.BMW_POZZI.locked dans index.js), au lieu
+       d'un attribut figé dans le HTML. Repli sécurisé : si jamais le Worker
+       ne renvoyait pas explicitement locked === false (ex. ancienne version
+       du Worker, champ absent), le champ reste verrouillé par défaut — il
+       faut une autorisation explicite et positive pour le déverrouiller,
+       jamais l'inverse. */
+    rateBmwEl.disabled = bmw.locked !== false;
+    rateBmwEl.title = rateBmwEl.disabled
+      ? `Taux contractuel verrouillé côté serveur (${bmw.rate}%)`
+      : `Taux contractuel (${bmw.rate}%) — déverrouillé côté serveur (CONTRACTS.BMW_POZZI.locked = false)`;
   }
   const rateFordEl = document.getElementById("rate-ford");
   if (rateFordEl && rateFordEl.value === "") {
     rateFordEl.value = Number(ford.rate).toFixed(2);
+  }
+
+  applyContractEndDateAlert("bmw-contract-alert", bmw, "BMW Ch.Pozzi");
+}
+
+/* Alerte d'échéance de contrat — purement informative. N'active ni ne
+   désactive jamais le verrou : c'est seulement un rappel visuel pour vous
+   inviter à renégocier/mettre à jour le taux en temps voulu. Reste masquée
+   tant que endDate est null (comportement par défaut, inerte). */
+function applyContractEndDateAlert(bandeauId, contract, label) {
+  const el = document.getElementById(bandeauId);
+  if (!el) return;
+  if (!contract.endDate) { el.classList.add("hidden"); return; }
+
+  const end = new Date(contract.endDate + "T00:00:00");
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const daysLeft = Math.round((end - today) / 86400000);
+  const ALERT_WINDOW_DAYS = 30;
+
+  if (daysLeft > ALERT_WINDOW_DAYS) { el.classList.add("hidden"); return; }
+
+  el.classList.remove("hidden");
+  if (daysLeft >= 0) {
+    el.innerHTML = `⚠ Le contrat <strong>${esc(label)}</strong> arrive à échéance le
+      <strong>${esc(fmtDateISOtoFR(contract.endDate))}</strong> (${daysLeft} jour(s) restant(s)).
+      Pensez à négocier/signer le renouvellement — le taux actuel (${contract.rate}%) reste appliqué
+      et verrouillé tant qu'aucune mise à jour n'est faite dans le code.`;
+  } else {
+    el.innerHTML = `⚠ Le contrat <strong>${esc(label)}</strong> est arrivé à échéance le
+      <strong>${esc(fmtDateISOtoFR(contract.endDate))}</strong> (il y a ${Math.abs(daysLeft)} jour(s)).
+      Le taux actuel (${contract.rate}%) reste appliqué tel quel jusqu'à mise à jour explicite du contrat.`;
   }
 }
 
