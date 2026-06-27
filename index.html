@@ -1537,6 +1537,9 @@ const apiLoginGithub = (code, redirectUri) => apiCall("/api/login-github", { met
 const apiGetData         = () => apiCall("/api/data");
 const apiSaveData        = (payload) => apiCall("/api/data", { method: "POST", body: payload });
 const apiGetCollaborators = () => apiCall("/api/collaborators");
+/* Coordonnées bancaires — réservées aux comptes FULL (403 sinon côté Worker).
+   Jamais stockées côté client : récupérées à chaque génération de facture. */
+const apiGetPaymentDetails = () => apiCall("/api/payment-details");
 
 /* Export comptable CSV — réservé aux comptes scope "FULL" (le Worker renvoie
    403 sinon). Contrairement à apiCall(), la réponse n'est pas du JSON mais un
@@ -2170,7 +2173,7 @@ window.addEventListener("afterprint", () => {
    (source unique du taux, jamais recalculé/dupliqué ailleurs). Disponible
    uniquement pour BMW Ch.Pozzi (convention réellement signée) et pour les
    véhicules au statut "Facturable" (livré + payé + valeur renseignée). */
-function printInvoice(id, concession) {
+async function printInvoice(id, concession) {
   if (concession !== "BMW_POZZI") {
     toast("Facture indisponible : aucune convention signée pour cette concession (simulation uniquement).", "error");
     return;
@@ -2179,6 +2182,14 @@ function printInvoice(id, concession) {
   if (!v) { toast("Véhicule introuvable.", "error"); return; }
   if (computeEligibilite(v) !== "FACTURABLE") {
     toast("Ce véhicule n'est pas encore Facturable (PV de mise à disposition signé + payé + valeur de vente requis).", "error");
+    return;
+  }
+
+  let payment;
+  try {
+    payment = await apiGetPaymentDetails();
+  } catch (e) {
+    toast("Impossible de récupérer les coordonnées bancaires : " + e.message, "error");
     return;
   }
 
@@ -2240,6 +2251,13 @@ function printInvoice(id, concession) {
           encaissement effectif (Art.5) — statut paiement constaté : ${esc(statutPaiementLabel)}.
         </p>
       </section>
+
+      <div class="invoice-payment">
+        <strong>Détails du paiement</strong>
+        Nom du bénéficiaire : ${esc(payment.beneficiaire)}<br>
+        BIC : ${esc(payment.bic)}<br>
+        IBAN : ${esc(payment.iban)}
+      </div>
 
       <footer class="invoice-footer">
         Document généré automatiquement par ZEEV CARS le ${esc(today)} — à vérifier avant envoi officiel.
@@ -2319,24 +2337,32 @@ function setupConsolidatedInvoice() {
     refreshTotal();
   });
 
-  generateBtn.addEventListener("click", () => {
+  generateBtn.addEventListener("click", async () => {
     const checked = Array.from(listEl.querySelectorAll('input[type="checkbox"]:checked'));
     if (checked.length === 0) { toast("Sélectionnez au moins un véhicule.", "error"); return; }
     if (!numeroEl.value.trim()) { numeroEl.focus(); toast("Indiquez un numéro de facture.", "error"); return; }
 
     const ids = checked.map(cb => cb.dataset.id);
     const vehicules = ids.map(id => state.data.vehicules.find(x => x.id === id)).filter(Boolean);
-    renderConsolidatedInvoice({
-      numero: numeroEl.value.trim(),
-      emission: emissionEl.value,
-      echeance: echeanceEl.value,
-      vehicules,
-    });
-    dialog.close();
+    generateBtn.disabled = true;
+    try {
+      await renderConsolidatedInvoice({
+        numero: numeroEl.value.trim(),
+        emission: emissionEl.value,
+        echeance: echeanceEl.value,
+        vehicules,
+      });
+      dialog.close();
+    } catch (e) {
+      toast("Impossible de générer la facture : " + e.message, "error");
+    } finally {
+      generateBtn.disabled = false;
+    }
   });
 }
 
-function renderConsolidatedInvoice({ numero, emission, echeance, vehicules }) {
+async function renderConsolidatedInvoice({ numero, emission, echeance, vehicules }) {
+  const payment = await apiGetPaymentDetails(); // 403 si scope != FULL, 500 si non configuré — propagé à l'appelant
   const rate = state.contracts.BMW_POZZI.rate; // source correcte : transmise par le Worker
   let totalHT = 0;
   const rows = vehicules.map((v, i) => {
@@ -2405,7 +2431,9 @@ function renderConsolidatedInvoice({ numero, emission, echeance, vehicules }) {
 
       <div class="invoice-payment">
         <strong>Détails du paiement</strong>
-        Coordonnées bancaires : voir document séparé transmis au destinataire.
+        Nom du bénéficiaire : ${esc(payment.beneficiaire)}<br>
+        BIC : ${esc(payment.bic)}<br>
+        IBAN : ${esc(payment.iban)}
       </div>
 
       <footer class="invoice-footer">
