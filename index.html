@@ -295,6 +295,7 @@ body::before {
 }
 .auth-other-toggle:hover { color: var(--ac); }
 
+.panel-actions { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 .tb-btn.sm { padding: 4px 9px; font-size: 11px; }
 
 /* ── Dialog native — Gestion des collaborateurs ───────────────────── */
@@ -1173,6 +1174,13 @@ td.num { text-align: right; font-family: var(--mono); }
         </div>
       </div>
 
+      <div class="panel-actions">
+        <button type="button" class="tb-btn add-vehicle-btn" data-concession="BMW_POZZI">
+          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/></svg>
+          Ajouter un véhicule
+        </button>
+      </div>
+
       <div class="kpi-row" id="kpi-bmw" role="region" aria-label="Indicateurs BMW CH. Pozzi"></div>
 
       <div class="table-wrap">
@@ -1204,6 +1212,13 @@ td.num { text-align: right; font-family: var(--mono); }
           <label>Condition de déclenchement</label>
           <span class="param-text">Non définie — aucun contrat signé</span>
         </div>
+      </div>
+
+      <div class="panel-actions">
+        <button type="button" class="tb-btn add-vehicle-btn" data-concession="FORD_VILLENEUVE">
+          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/></svg>
+          Ajouter un véhicule
+        </button>
       </div>
 
       <div class="kpi-row" id="kpi-ford" role="region" aria-label="Indicateurs Ford Villeneuve"></div>
@@ -1300,7 +1315,61 @@ td.num { text-align: right; font-family: var(--mono); }
   </div>
 </dialog>
 
+<!-- ============================================================
+     DIALOG — Ajouter un véhicule / client (fonctionnalité demandée)
+============================================================ -->
+<dialog id="add-vehicle-dialog" class="app-dialog" aria-label="Ajouter un véhicule">
+  <header class="dialog-head">
+    <h2>Ajouter un véhicule</h2>
+    <button type="button" class="dialog-close" id="add-vehicle-dialog-close" aria-label="Fermer la fenêtre">✕</button>
+  </header>
+  <div class="dialog-body">
+    <p class="field-hint" style="margin-bottom:14px;">
+      La concession est déjà déterminée par l'onglet depuis lequel vous ouvrez ce formulaire
+      (<strong id="add-vehicle-concession-label"></strong>). Le véhicule est ajouté à la liste de
+      travail ; cliquez ensuite sur <strong>« Enregistrer sur GitHub »</strong> pour le conserver
+      (ou attendez l'enregistrement automatique, toutes les 10 minutes).
+    </p>
+    <form id="add-vehicle-form">
+      <div class="auth-field">
+        <label class="auth-lbl" for="av-client">Client *</label>
+        <input class="auth-inp" id="av-client" required>
+      </div>
+      <div class="auth-field">
+        <label class="auth-lbl" for="av-conducteur">Conducteur</label>
+        <input class="auth-inp" id="av-conducteur">
+      </div>
+      <div class="auth-field">
+        <label class="auth-lbl" for="av-modele">Modèle / Version</label>
+        <input class="auth-inp" id="av-modele">
+      </div>
+      <div class="auth-field">
+        <label class="auth-lbl" for="av-immat">Immatriculation</label>
+        <input class="auth-inp" id="av-immat">
+      </div>
+      <div class="auth-field">
+        <label class="auth-lbl" for="av-statut">Statut livraison</label>
+        <select class="auth-sel" id="av-statut">
+          <option value="EN_COMMANDE" selected>En cours de commande</option>
+          <option value="LIVRE">Livré</option>
+          <option value="NON_LIVRE">Non livré</option>
+        </select>
+      </div>
+      <div class="auth-field">
+        <label class="auth-lbl" for="av-source">Source</label>
+        <input class="auth-inp" id="av-source">
+      </div>
+      <div class="auth-field">
+        <label class="auth-lbl" for="av-remarques">Remarques</label>
+        <input class="auth-inp" id="av-remarques">
+      </div>
+      <button type="submit" class="auth-btn" style="margin-top:4px;">Ajouter à la liste</button>
+    </form>
+  </div>
+</dialog>
+
 <div id="invoice-print-area" class="print-only" aria-hidden="true"></div>
+
 
 <script>
 /* =====================================================================
@@ -1883,6 +1952,8 @@ async function bootApp() {
   setupUsersAdmin();
   setupExport();
   setupImport();
+  setupAddVehicle();
+  setupAutoSave();
 }
 
 function refreshOwnerUI() {
@@ -2097,27 +2168,49 @@ function setupTabs() {
 }
 
 function setupSave() {
-  document.getElementById("save-btn").addEventListener("click", async () => {
-    if (!state.dirty) { toast("Aucune modification à enregistrer."); return; }
-    const btn = document.getElementById("save-btn");
-    btn.disabled = true;
-    setSyncStatus("Enregistrement…", "loading");
-    try {
-      await apiSaveData({
-        vehicules: state.data.vehicules,
-      });
-      state.dirty = false;
-      updateSaveBtn();
-      setSyncStatus("Synchronisé", "ok");
-      toast("Modifications enregistrées sur GitHub. (Rappel : les taux/commissions Ford restent une simulation locale, non incluse dans cet enregistrement.)", "success");
-    } catch (e) {
-      setSyncStatus("Erreur d'enregistrement", "error");
-      toast(e.message, "error");
-      if (/conflit/i.test(e.message || "")) await reloadData();
-    } finally {
-      btn.disabled = false;
-    }
-  });
+  document.getElementById("save-btn").addEventListener("click", () => performSave(false));
+}
+
+/* Logique de sauvegarde inchangée — simplement extraite de setupSave() pour
+   être appelée aussi par l'enregistrement automatique (toutes les 10 min).
+   silent=true : pas de toast si rien à enregistrer (évite un bruit visuel
+   répété toutes les 10 minutes quand il n'y a rien de nouveau). */
+async function performSave(silent) {
+  if (!state.dirty) { if (!silent) toast("Aucune modification à enregistrer."); return; }
+  const btn = document.getElementById("save-btn");
+  btn.disabled = true;
+  setSyncStatus("Enregistrement…", "loading");
+  try {
+    await apiSaveData({
+      vehicules: state.data.vehicules,
+    });
+    state.dirty = false;
+    updateSaveBtn();
+    setSyncStatus("Synchronisé", "ok");
+    toast(
+      silent
+        ? "Enregistrement automatique effectué."
+        : "Modifications enregistrées sur GitHub. (Rappel : les taux/commissions Ford restent une simulation locale, non incluse dans cet enregistrement.)",
+      "success"
+    );
+  } catch (e) {
+    setSyncStatus("Erreur d'enregistrement", "error");
+    toast(e.message, "error");
+    if (/conflit/i.test(e.message || "")) await reloadData();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* Enregistrement automatique — fonctionnalité demandée explicitement.
+   Réutilise exactement le même chemin d'écriture (apiSaveData) que le bouton
+   manuel : aucune nouvelle route, aucun nouveau format de données. Ne se
+   déclenche que s'il y a réellement des modifications non enregistrées. */
+function setupAutoSave() {
+  const TEN_MINUTES = 10 * 60 * 1000;
+  setInterval(() => {
+    if (state.dirty) performSave(true);
+  }, TEN_MINUTES);
 }
 
 /* =====================================================================
@@ -2636,6 +2729,96 @@ function setupImport() {
     } catch (err) {
       toast("Import impossible : " + err.message, "error");
     }
+  });
+}
+
+/* =====================================================================
+   AJOUTER UN VÉHICULE / CLIENT — fonctionnalité demandée explicitement.
+   N'invente aucune règle de calcul : le nouveau véhicule suit exactement le
+   même schéma de champs que ceux déjà présents dans vehicules.json, avec les
+   mêmes valeurs de départ neutres (statut "à vérifier", non facturé, non
+   signé). Le calcul de commission/éligibilité s'applique à lui de la même
+   façon qu'à tout autre véhicule — computeCommission()/computeEligibilite()
+   ne sont pas dupliquées ni modifiées ici.
+   ===================================================================== */
+const CONCESSION_DEFAULTS = {
+  BMW_POZZI:       { marque: "BMW",  raison_sociale: "CH. POZZI" },
+  FORD_VILLENEUVE: { marque: "Ford", raison_sociale: "VILLENEUVE AUTOMOBILES" },
+};
+const CONCESSION_LABELS = {
+  BMW_POZZI:       "BMW Ch.Pozzi",
+  FORD_VILLENEUVE: "Ford Villeneuve",
+};
+
+function nextVehicleId(concession) {
+  const prefix = concession === "BMW_POZZI" ? "bmw" : "ford";
+  let max = 0;
+  state.data.vehicules.forEach(v => {
+    const m = /^([a-z]+)-(\d+)$/.exec(v.id || "");
+    if (m && m[1] === prefix) max = Math.max(max, parseInt(m[2], 10));
+  });
+  return `${prefix}-${String(max + 1).padStart(3, "0")}`;
+}
+
+function setupAddVehicle() {
+  const dialog      = document.getElementById("add-vehicle-dialog");
+  const closeBtn    = document.getElementById("add-vehicle-dialog-close");
+  const form        = document.getElementById("add-vehicle-form");
+  const concLabel   = document.getElementById("add-vehicle-concession-label");
+  if (!dialog || !form) return;
+
+  let currentConcession = null;
+
+  document.querySelectorAll(".add-vehicle-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentConcession = btn.dataset.concession;
+      concLabel.textContent = CONCESSION_LABELS[currentConcession] || currentConcession;
+      form.reset();
+      dialog.showModal();
+      document.getElementById("av-client").focus();
+    });
+  });
+  closeBtn.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const client = document.getElementById("av-client").value.trim();
+    if (!client) { document.getElementById("av-client").focus(); return; }
+
+    const defaults = CONCESSION_DEFAULTS[currentConcession] || {};
+    const vehicule = {
+      concession: currentConcession,
+      marque: defaults.marque || "",
+      raison_sociale: defaults.raison_sociale || "",
+      vin: "",
+      valeur_vente_ht: null,
+      statut_paiement: "INCONNU",
+      statut_facturation: "NON_FACTURE",
+      pv_signe: "NON_SIGNE",
+      date_pv_signe: "",
+      numero_facture: "",
+      date_facture: "",
+      source: document.getElementById("av-source").value.trim(),
+      maj_par: state.user.name,
+      maj_le: new Date().toISOString().slice(0, 16).replace("T", " "),
+      id: nextVehicleId(currentConcession),
+      client,
+      conducteur: document.getElementById("av-conducteur").value.trim(),
+      modele: document.getElementById("av-modele").value.trim(),
+      immat: document.getElementById("av-immat").value.trim(),
+      statut_livraison: document.getElementById("av-statut").value,
+      date_livraison: "",
+      remarques: document.getElementById("av-remarques").value.trim(),
+    };
+
+    state.data.vehicules.push(vehicule);
+    state.dirty = true;
+    updateSaveBtn();
+    renderAll();
+    setSyncStatus("Modifications non enregistrées", "dirty");
+    dialog.close();
+    toast(`Véhicule ${vehicule.id} ajouté (${client}). Pensez à enregistrer.`, "success");
   });
 }
 
