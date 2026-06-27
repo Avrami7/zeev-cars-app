@@ -2435,7 +2435,7 @@ function cellSelect(id, field, value, editable, options) {
 function attachCellHandlers(tableId, concession) {
   const table = document.getElementById(tableId);
   table.querySelectorAll(".cell-input").forEach(input => {
-    input.addEventListener("change", () => {
+    const handleLiveUpdate = () => {
       const id    = input.dataset.id;
       const field = input.dataset.field;
       const v     = state.data.vehicules.find(x => x.id === id);
@@ -2461,7 +2461,14 @@ function attachCellHandlers(tableId, concession) {
         if (eligibiliteCell) eligibiliteCell.innerHTML    = badge(eligibilite, LABELS.eligibilite, BADGE_CLASS);
       }
       setSyncStatus("Modifications non enregistrées", "dirty");
-    });
+    };
+    /* "input" : réagit à chaque frappe/sélection, pour un retour immédiat sur
+       les KPI et la commission — demande explicite de réactivité instantanée.
+       "change" : conservé en complément pour les navigateurs/contrôles où
+       "input" ne se déclenche pas de façon fiable (ex. certains sélecteurs de
+       date natifs) — exécuter deux fois la même mise à jour est inoffensif. */
+    input.addEventListener("input", handleLiveUpdate);
+    input.addEventListener("change", handleLiveUpdate);
   });
 }
 
