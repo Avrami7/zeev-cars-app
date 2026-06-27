@@ -1,0 +1,2406 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>ZEEV CARS — Suivi &amp; Facturation</title>
+<meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f6fa" media="(prefers-color-scheme: light)">
+<!-- Dépendance externe optionnelle : Google Fonts. En cas de blocage proxy/réseau
+     restrictif, la pile de secours (sans-serif / monospace, voir style.css --font/--mono)
+     s'applique automatiquement sans erreur visible — voir détection app.js (Font Loading API). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   VARIABLES THÈME SOMBRE (défaut)
+   ===================================================================== */
+:root {
+  --bg:   #0d1117; --sur: #181c27; --sur2: #1e2333; --sur3: #242b3d;
+  --brd:  rgba(255,255,255,.07); --brd2: rgba(255,255,255,.13);
+  --ac:   #4f8ef7; --ac2: #7cb3ff;
+  --gr:   #34d399; --gr-bg: rgba(52,211,153,.09);  --gr-brd: rgba(52,211,153,.25);
+  --am:   #f59e0b; --am-bg: rgba(245,158,11,.08);  --am-brd: rgba(245,158,11,.22);
+  --rd:   #f87171; --rd-bg: rgba(248,113,113,.08); --rd-brd: rgba(248,113,113,.22);
+  --tx:   #e8eaf0; --tx2: #8b92a8; --tx3: #555e78;
+  --pb:   rgba(79,142,247,.14);
+  --font: 'Syne', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --r:    12px; --rs: 8px;
+  --transition: 150ms ease;
+  /* ── Tokens design additionnels (purement visuels) ───────────────── */
+  --ease:     cubic-bezier(.22,1,.36,1);
+  --ease-out: cubic-bezier(.16,1,.3,1);
+  --ease-spring: cubic-bezier(.34,1.56,.64,1);
+  --sh-1: 0 1px 2px rgba(0,0,0,.24);
+  --sh-2: 0 8px 24px rgba(0,0,0,.28);
+  --sh-3: 0 20px 48px rgba(0,0,0,.38);
+  --glow-ac: 0 0 0 1px rgba(79,142,247,.4), 0 4px 18px rgba(79,142,247,.22);
+  --glass-bg: rgba(24,28,39,.72);
+  --noise-op: .035;
+}
+
+/* =====================================================================
+   THÈME CLAIR
+   ===================================================================== */
+[data-theme="light"] {
+  --bg:  #f4f6fa; --sur: #ffffff; --sur2: #f0f2f7; --sur3: #e8ebf2;
+  --brd: rgba(0,0,0,.10); --brd2: rgba(0,0,0,.18);
+  --tx:  #111827; --tx2: #374151; --tx3: #6b7280;
+  --ac:  #2563eb; --ac2: #1d4ed8;
+  --gr:  #16a34a; --gr-bg: #dcfce7; --gr-brd: #86efac;
+  --rd:  #dc2626; --rd-bg: #fee2e2; --rd-brd: #fca5a5;
+  --am:  #d97706; --am-bg: #fef3c7; --am-brd: #fcd34d;
+  --pb:  rgba(37,99,235,.08);
+  --sh-1: 0 1px 2px rgba(20,30,60,.06);
+  --sh-2: 0 8px 24px rgba(20,30,60,.10);
+  --sh-3: 0 20px 48px rgba(20,30,60,.16);
+  --glow-ac: 0 0 0 1px rgba(37,99,235,.25), 0 4px 18px rgba(37,99,235,.14);
+  --glass-bg: rgba(255,255,255,.78);
+  --noise-op: .02;
+}
+[data-theme="light"] input,
+[data-theme="light"] select {
+  border-color: rgba(0,0,0,.18) !important;
+  color: #1a1e2e !important;
+  background: #fff !important;
+}
+[data-theme="light"] .card      { box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+[data-theme="light"] .auth-card { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+[data-theme="light"] table.data-table tbody tr:hover td { background: rgba(0,0,0,.02); }
+
+/* =====================================================================
+   BASE
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+html, body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--tx);
+  min-height: 100vh;
+  transition: background-color .45s var(--ease), color .45s var(--ease);
+}
+/* Texture ambiante très subtile + vignette — perception "premium", aucun
+   impact sur la mise en page ni sur le contenu. */
+body { position: relative; isolation: isolate; }
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(900px 600px at 14% -8%, var(--pb) 0%, transparent 60%),
+    radial-gradient(700px 500px at 100% 0%, var(--pb) 0%, transparent 55%);
+  opacity: .6;
+  transition: opacity .45s var(--ease);
+}
+[data-theme="light"] body::before { opacity: .9; }
+.topbar, .nav, .fleet, .card, .kpi-row, .table-wrap, .appfooter,
+.auth-card, .app-dialog, .toast, .tb-btn, .sync-pill, .badge {
+  transition: background-color .35s var(--ease), border-color .35s var(--ease),
+              color .35s var(--ease), box-shadow .35s var(--ease);
+}
+.hidden { display: none !important; }
+:focus-visible {
+  outline: 2px solid var(--ac);
+  outline-offset: 2px;
+  border-radius: 4px;
+  transition: outline-offset .15s var(--ease);
+}
+
+/* =====================================================================
+   SKIP LINK (accessibilité)
+   ===================================================================== */
+.skip-link {
+  position: absolute;
+  top: -999px;
+  left: 0;
+  background: var(--ac);
+  color: #fff;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 0 0 var(--rs) 0;
+  z-index: 10000;
+  text-decoration: none;
+  transition: top var(--transition);
+}
+.skip-link:focus { top: 0; }
+
+/* =====================================================================
+   SCROLLBARS PERSONNALISÉES (purement visuel)
+   ===================================================================== */
+* { scrollbar-width: thin; scrollbar-color: var(--brd2) transparent; }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--brd2); border-radius: 999px;
+  transition: background .2s var(--ease);
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--tx3); }
+
+/* =====================================================================
+   ÉCRAN DE CONNEXION
+   ===================================================================== */
+#auth-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+.auth-box    { width: 100%; max-width: 380px; padding: 0 20px; }
+.auth-logo   {
+  text-align: center; margin-bottom: 28px;
+  animation: authRise .6s var(--ease-out) backwards; animation-delay: .05s;
+}
+.auth-logo-title { font-size: 24px; font-weight: 700; color: var(--tx); letter-spacing: -.02em; }
+.auth-logo-title span { color: var(--gr); }
+.auth-sub    { font-size: 12px; color: var(--tx3); margin-top: 6px; }
+.auth-card   {
+  background: var(--sur);
+  border: 1px solid var(--brd2);
+  border-radius: 14px;
+  padding: 28px 24px;
+  box-shadow: var(--sh-2);
+  animation: authRise .6s var(--ease-out) backwards; animation-delay: .16s;
+}
+@keyframes authRise {
+  from { opacity: 0; transform: translateY(14px) scale(.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.auth-field  { margin-bottom: 16px; }
+.auth-lbl    {
+  font-size: 11px; font-weight: 700; color: var(--tx2);
+  text-transform: uppercase; letter-spacing: .06em;
+  margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+}
+.auth-inp, .auth-sel {
+  width: 100%; padding: 11px 14px;
+  background: var(--bg);
+  border: 1.5px solid var(--brd2);
+  border-radius: 9px;
+  color: var(--tx); font-size: 13px; font-family: var(--font);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  cursor: pointer;
+}
+.auth-inp:focus, .auth-sel:focus {
+  border-color: var(--ac);
+  box-shadow: 0 0 0 3px var(--pb);
+}
+.auth-inp.err { border-color: var(--rd) !important; background: var(--rd-bg) !important; }
+.auth-btn {
+  width: 100%; margin-top: 18px; padding: 13px;
+  background: linear-gradient(135deg, var(--ac), var(--ac2));
+  border: none; border-radius: 9px;
+  color: #fff; font-size: 13px; font-weight: 700; font-family: var(--font);
+  cursor: pointer; letter-spacing: .01em;
+  transition: opacity var(--transition), transform .25s var(--ease-spring), box-shadow .25s var(--ease);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  position: relative; overflow: hidden;
+  box-shadow: var(--sh-1);
+}
+.auth-btn::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.35) 48%, transparent 66%);
+  transform: translateX(-120%);
+  transition: transform .7s var(--ease);
+  pointer-events: none;
+}
+.auth-btn:hover:not(:disabled)::after { transform: translateX(120%); }
+.auth-btn:hover:not(:disabled) { opacity: 1; transform: translateY(-2px); box-shadow: var(--glow-ac), var(--sh-2); }
+.auth-btn:active:not(:disabled){ transform: translateY(0) scale(.985); }
+.auth-btn:disabled { opacity: .6; cursor: not-allowed; }
+.auth-err {
+  margin-top: 12px; padding: 10px 13px;
+  background: var(--rd-bg); border: 1px solid var(--rd-brd);
+  border-radius: 8px; font-size: 11px; color: var(--rd); font-weight: 600;
+  display: none;
+}
+.auth-err.show { display: block; animation: errIn .35s var(--ease-out); }
+@keyframes errIn {
+  0%   { opacity: 0; transform: translateY(-4px); }
+  40%  { opacity: 1; transform: translateY(0); }
+  50%  { transform: translateX(-3px); }
+  70%  { transform: translateX(3px); }
+  100% { transform: translateX(0); }
+}
+.auth-help {
+  margin-top: 16px; padding: 12px;
+  background: var(--sur2); border-radius: 8px;
+  font-size: 11px; color: var(--tx2);
+}
+.auth-help ol { margin: 8px 0; padding-left: 18px; }
+.auth-help li { margin-bottom: 4px; line-height: 1.5; }
+.auth-help-warn { margin-top: 8px; color: var(--am); font-weight: 600; font-size: 10.5px; }
+.auth-help-toggle {
+  background: none; border: 1px solid var(--brd2); color: var(--tx2);
+  width: 18px; height: 18px; border-radius: 50%;
+  font-size: 10px; cursor: pointer; line-height: 1;
+  transition: border-color var(--transition), color var(--transition);
+}
+.auth-help-toggle:hover { border-color: var(--ac); color: var(--ac2); }
+.field-hint { font-size: 10px; color: var(--tx3); margin-top: 5px; display: block; }
+.field-hint-warn { color: var(--am); font-weight: 600; }
+.param-lock { font-size: 11px; opacity: .7; cursor: help; }
+
+.auth-fieldset {
+  border: 1px solid var(--brd); border-radius: var(--rs);
+  padding: 14px 14px 4px; margin-bottom: 16px;
+}
+.auth-legend {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--tx2); padding: 0 4px; margin-left: -4px;
+}
+.auth-field-checkbox { display: flex; flex-direction: column; }
+.auth-chk-lbl {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--tx); cursor: pointer; user-select: none;
+}
+.auth-chk-lbl input[type="checkbox"] {
+  width: 16px; height: 16px; accent-color: var(--ac); cursor: pointer;
+}
+
+/* ── Pastilles de compte (initiales) ──────────────────────────────── */
+.account-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.account-pill {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 14px; min-width: 64px;
+  background: var(--sur2); border: 1.5px solid var(--brd2); border-radius: var(--rs);
+  cursor: pointer; transition: border-color .25s var(--ease), transform .2s var(--ease-spring), box-shadow .25s var(--ease), background .25s var(--ease);
+  font-family: var(--font); color: var(--tx);
+}
+.account-pill:hover { border-color: var(--ac); transform: translateY(-2px); box-shadow: var(--sh-1); }
+.account-pill[aria-checked="true"] {
+  border-color: var(--ac); background: var(--pb); box-shadow: 0 0 0 2px var(--pb), var(--sh-1);
+}
+.pill-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--ac); color: #fff; font-weight: 700; font-size: 13px;
+  font-family: var(--mono); letter-spacing: -.02em;
+  transition: transform .25s var(--ease-spring);
+}
+.account-pill:hover .pill-avatar { transform: scale(1.08); }
+.pill-avatar.sm { width: 24px; height: 24px; font-size: 11px; }
+.pill-role { font-size: 10.5px; color: var(--tx2); }
+.auth-other-toggle {
+  display: inline-block; margin-top: 8px; padding: 0; border: none; background: none;
+  color: var(--ac2); font-size: 11.5px; font-family: var(--font); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.auth-other-toggle:hover { color: var(--ac); }
+
+.tb-btn.sm { padding: 4px 9px; font-size: 11px; }
+
+/* ── Dialog native — Gestion des collaborateurs ───────────────────── */
+.app-dialog {
+  border: none; border-radius: var(--r); padding: 0;
+  background: var(--sur); color: var(--tx); font-family: var(--font);
+  width: min(640px, 92vw); max-height: 86vh;
+  box-shadow: var(--sh-3);
+  animation: dialogIn .32s var(--ease-out);
+}
+.app-dialog::backdrop {
+  background: rgba(0,0,0,.55); backdrop-filter: blur(3px);
+  animation: backdropIn .32s var(--ease-out);
+}
+@keyframes dialogIn {
+  from { opacity: 0; transform: translateY(10px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+.dialog-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--brd);
+}
+.dialog-head h2 { font-size: 16px; font-weight: 700; }
+.dialog-close {
+  border: none; background: none; color: var(--tx2); font-size: 16px;
+  cursor: pointer; padding: 4px 8px; border-radius: var(--rs);
+  transition: background var(--transition), color var(--transition), transform .2s var(--ease-spring);
+}
+.dialog-close:hover { background: var(--sur3); color: var(--tx); transform: rotate(90deg); }
+.dialog-body { padding: 18px 20px 22px; overflow-y: auto; max-height: calc(86vh - 56px); }
+.users-table { margin-bottom: 4px; }
+
+/* ── Feux F1 ────────────────────────────────────────────────────────── */
+.f1-lights {
+  display: flex; gap: 10px; justify-content: center; align-items: center;
+  margin-top: 14px;
+}
+.f1-col { display: flex; flex-direction: column; align-items: center; }
+.f1-light {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #1a1a2e; border: 2px solid #2a2a4a;
+  box-shadow: 0 0 0px #ff1801;
+  transition: background .08s, box-shadow .08s, border-color .08s;
+}
+.f1-light.on {
+  background: #ff1801; border-color: #ff4433;
+  box-shadow: 0 0 12px 4px rgba(255,24,1,.7), 0 0 28px 8px rgba(255,24,1,.3);
+}
+.f1-light.off {
+  background: #1a1a2e; border-color: #2a2a4a;
+  box-shadow: 0 0 0px #ff1801;
+  transition: background .25s, box-shadow .35s, border-color .25s;
+}
+.f1-light.green {
+  background: #00d04b; border-color: #00ff5a;
+  box-shadow: 0 0 14px 5px rgba(0,208,75,.75), 0 0 32px 10px rgba(0,208,75,.3);
+  transition: background .12s, box-shadow .12s, border-color .12s;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   OVERLAY FERMETURE — TV Static → Lotus Eletre → Noir
+   Séquence entièrement décorative (déconnexion). Chorégraphie pilotée par
+   playClosingAnimation() en JS ; chaque classe ci-dessous correspond à une
+   phase ajoutée/retirée par cette fonction, dans le même ordre qu'avant —
+   seul l'habillage visuel et le rythme ont été retravaillés.
+   ═══════════════════════════════════════════════════════════════════════ */
+.closing-overlay {
+  position: fixed; inset: 0; z-index: 999999;
+  background: #000;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+.closing-overlay.hidden { display: none; }
+.closing-overlay.show   { opacity: 1; }
+
+/* ── Phase 1 : Static TV — effet "channel surf" ──────────────────────── */
+#tv-static {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  transition: opacity .15s ease;
+  filter: contrast(1.15);
+}
+#tv-static.show { opacity: 1; }
+#tv-static.hide { opacity: 0; transition: opacity .08s ease; }
+/* secousse horizontale brève simulant un défaut de synchro tube cathodique */
+#tv-static.glitch { animation: tvGlitchJitter .12s steps(2, end) 3; }
+@keyframes tvGlitchJitter {
+  0%   { transform: translate(0,0); }
+  25%  { transform: translate(-1.5%, 0) scaleY(1.01); }
+  50%  { transform: translate(1.5%, 0); }
+  75%  { transform: translate(-1%, .4%); }
+  100% { transform: translate(0,0); }
+}
+
+.tv-scanlines {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0,0,0,.18) 0px, rgba(0,0,0,.18) 1px,
+    transparent 1px, transparent 3px
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.closing-overlay.phase-static .tv-scanlines { opacity: 1; animation: scanRoll 6s linear infinite; }
+@keyframes scanRoll { from { background-position-y: 0; } to { background-position-y: 600px; } }
+
+.tv-nosignal {
+  position: absolute;
+  bottom: 18%; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  opacity: 0;
+  transition: opacity .15s ease;
+  pointer-events: none;
+}
+.closing-overlay.phase-static .tv-nosignal { opacity: 1; }
+.tv-nosignal span {
+  font-family: 'DM Mono', monospace;
+  font-size: clamp(10px, 1.8vw, 16px);
+  color: rgba(255,255,255,.6);
+  letter-spacing: .25em;
+  text-transform: uppercase;
+  animation: rgbFlicker 2.4s steps(1) infinite;
+}
+@keyframes rgbFlicker {
+  0%, 92%, 100% { text-shadow: none; opacity: 1; }
+  93%  { text-shadow: 2px 0 0 rgba(255,40,80,.6), -2px 0 0 rgba(40,200,255,.6); opacity: .85; }
+  94%  { text-shadow: -1px 0 0 rgba(255,40,80,.5), 1px 0 0 rgba(40,200,255,.5); opacity: 1; }
+}
+.tv-ch { font-size: clamp(8px, 1.2vw, 12px) !important; color: rgba(255,255,255,.3) !important; }
+
+/* ── Flash de coupure — impact bref au moment du cut statique → vidéo ── */
+.closing-flash {
+  position: absolute; inset: 0; background: #fff;
+  opacity: 0; pointer-events: none; z-index: 5;
+}
+.closing-flash.pulse { animation: flashPulse .42s var(--ease-out, ease) forwards; }
+@keyframes flashPulse {
+  0%   { opacity: 0; }
+  12%  { opacity: .9; }
+  100% { opacity: 0; }
+}
+
+/* ── Bandes cinéma — format large pendant la scène Lotus ─────────────── */
+.cine-bar {
+  position: absolute; left: 0; right: 0; background: #000;
+  height: 0; z-index: 4; pointer-events: none;
+  transition: height .9s var(--ease-out, ease);
+}
+.cine-bar-top    { top: 0; }
+.cine-bar-bottom { bottom: 0; }
+.closing-overlay.phase-cine .cine-bar { height: 9%; }
+.closing-overlay.phase-cine-out .cine-bar { height: 0; transition-duration: 1.6s; }
+
+/* ── Phase 2-4 : Scène Lotus ───────────────────────────────────────── */
+.lotus-scene {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity .1s ease;
+}
+.lotus-scene.show {
+  opacity: 1;
+  animation: lotusReveal .6s var(--ease-out, ease);
+}
+@keyframes lotusReveal {
+  from { opacity: 0; filter: brightness(2.4) saturate(0); }
+  to   { opacity: 1; filter: brightness(1) saturate(1); }
+}
+
+.lotus-video {
+  /* centré, format carré de la vidéo affiché en boîte noire */
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  transform-origin: center bottom;
+  transition: transform 3.4s cubic-bezier(.45,0,.75,.55), filter 3.4s ease;
+}
+/* recul : la voiture s'éloigne — scale down, remonte légèrement et bascule
+   vers une teinte plus froide/nocturne, comme un dernier plan de pub auto */
+.lotus-scene.recede .lotus-video {
+  transform: scale(0.28) translateY(18%) rotateZ(-0.4deg);
+  filter: brightness(0.08) saturate(0.7) hue-rotate(-6deg);
+}
+
+/* assombrissement progressif de la scène (sauf phares) */
+.lotus-dark {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 60% at 50% 55%, transparent 0%, #000 100%);
+  opacity: 0;
+  pointer-events: none;
+  /* ne s'active pas ici — géré par JS via transition */
+  transition: opacity 2.8s ease;
+}
+
+/* halo phares qui persistent après la disparition */
+.lotus-headlights-glow {
+  position: absolute;
+  bottom: 50%; left: 50%;
+  transform: translate(-50%, 50%);
+  width: 420px; height: 60px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.4s ease;
+  /* deux halos distincts côté gauche et côté droit, style DRL Lotus */
+  background:
+    radial-gradient(ellipse 38% 100% at 22% 50%, rgba(255,255,255,.80) 0%, rgba(255,255,220,.3) 40%, transparent 75%),
+    radial-gradient(ellipse 38% 100% at 78% 50%, rgba(255,255,255,.80) 0%, rgba(255,255,220,.3) 40%, transparent 75%);
+  filter: blur(10px);
+}
+.lotus-headlights-glow.show {
+  opacity: 1;
+  animation: headlightThrob 1.6s ease-in-out infinite;
+}
+.lotus-headlights-glow.fade { opacity: 0; animation: none; transition: opacity 2.2s ease; }
+@keyframes headlightThrob {
+  0%, 100% { filter: blur(10px) brightness(1); }
+  50%      { filter: blur(12px) brightness(1.18); }
+}
+
+
+/* ── Phase 5 : Noir final, vignette douce ─────────────────────────────── */
+.closing-blackout {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 80% at 50% 50%, #050505 0%, #000 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.4s ease;
+}
+.closing-blackout.show { opacity: 1; }
+
+
+/* Spinner bouton connexion */
+.btn-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* =====================================================================
+   TOPBAR
+   ===================================================================== */
+.topbar {
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border-bottom: 1px solid var(--brd);
+  padding: 9px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: var(--sh-1);
+}
+.tb-left  { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; flex-shrink: 0; }
+.tb-brand { font-weight: 700; font-size: 15px; color: var(--tx); letter-spacing: -.01em; }
+.tb-brand span { color: var(--gr); text-shadow: 0 0 18px rgba(52,211,153,.35); }
+.tb-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--pb); border: 1px solid rgba(79,142,247,.3);
+  border-radius: 999px; padding: 3px 11px;
+  font-size: 10.5px; color: var(--ac2); font-weight: 700;
+}
+.tb-right { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.tb-sep   { width: 1px; height: 20px; background: var(--brd2); }
+.tb-btn {
+  padding: 7px 13px; border-radius: var(--rs);
+  border: 1px solid var(--brd2); background: transparent;
+  color: var(--tx2); font-size: 11.5px; font-weight: 600; font-family: var(--font);
+  cursor: pointer;
+  transition: border-color .2s var(--ease), color .2s var(--ease), background .2s var(--ease),
+              transform .2s var(--ease-spring), box-shadow .2s var(--ease);
+  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px;
+  position: relative;
+}
+.tb-btn:hover { border-color: var(--ac); color: var(--ac2); background: var(--pb); transform: translateY(-1px); box-shadow: var(--sh-1); }
+.tb-btn:active { transform: translateY(0) scale(.97); }
+.tb-btn.save-btn { background: var(--gr-bg); border-color: var(--gr-brd); color: var(--gr); }
+.tb-btn.save-btn:hover { opacity: .85; box-shadow: 0 4px 16px rgba(52,211,153,.22); }
+.tb-btn.save-btn.dirty {
+  background: var(--am-bg); border-color: var(--am-brd); color: var(--am);
+  animation: pulse-dirty 2s ease-in-out infinite;
+}
+@keyframes pulse-dirty {
+  0%, 100% { box-shadow: 0 0 0 0 var(--am-brd); }
+  50%       { box-shadow: 0 0 0 4px transparent; }
+}
+.tb-btn.danger { background: var(--rd-bg); border-color: var(--rd-brd); color: var(--rd); }
+.tb-btn.danger:hover { opacity: .85; }
+.tb-btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-icon { width: 14px; height: 14px; flex-shrink: 0; transition: transform .3s var(--ease-spring); }
+#reload-btn:hover .btn-icon { transform: rotate(150deg); }
+#print-btn:hover .btn-icon { transform: scale(1.12); }
+#save-btn:hover .btn-icon { transform: translateY(-1px); }
+
+/* Statut de synchronisation */
+.sync-pill {
+  font-size: 10.5px; font-weight: 600;
+  padding: 3px 10px; border-radius: 999px;
+  background: var(--sur2); color: var(--tx3);
+  border: 1px solid var(--brd);
+  transition: background .25s var(--ease), color .25s var(--ease), border-color .25s var(--ease);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.sync-pill::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; opacity: .55; flex-shrink: 0;
+}
+.sync-pill.sync-loading::before { animation: dotPulse 1s ease-in-out infinite; }
+@keyframes dotPulse {
+  0%, 100% { opacity: .3; transform: scale(.8); }
+  50%      { opacity: 1; transform: scale(1.15); }
+}
+.sync-pill.sync-ok      { background: var(--gr-bg); color: var(--gr); border-color: var(--gr-brd); }
+.sync-pill.sync-loading { background: var(--pb);    color: var(--ac2); border-color: rgba(79,142,247,.3); }
+.sync-pill.sync-error   { background: var(--rd-bg); color: var(--rd); border-color: var(--rd-brd); }
+.sync-pill.sync-dirty   { background: var(--am-bg); color: var(--am); border-color: var(--am-brd); }
+
+/* =====================================================================
+   FLEET / SOURCES BAR
+   ===================================================================== */
+.fleet {
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 6px 16px;
+  background: var(--sur); border-bottom: 1px solid var(--brd);
+  flex-wrap: wrap;
+}
+.fleet-label { font-size: 9px; color: var(--tx3); font-weight: 700; letter-spacing: .05em; }
+.ft {
+  background: var(--sur2); border: 1px solid var(--brd2);
+  border-radius: 999px; padding: 3px 10px;
+  font-size: 10px; font-weight: 700; color: var(--tx2);
+}
+.ft-sep { color: var(--tx3); }
+.offline-badge {
+  background: var(--am-bg) !important; border-color: var(--am-brd) !important;
+  color: var(--am) !important; cursor: help;
+}
+
+/* =====================================================================
+   NAVIGATION PAR ONGLETS
+   ===================================================================== */
+.nav {
+  display: flex; background: var(--sur);
+  border-bottom: 1px solid var(--brd);
+  padding: 0 16px; overflow-x: auto;
+}
+.ntab {
+  padding: 11px 16px;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  color: var(--tx3); border: none; background: transparent;
+  font-family: var(--font);
+  border-bottom: 2px solid transparent;
+  transition: color .25s var(--ease), border-color .25s var(--ease), transform .2s var(--ease-spring);
+  white-space: nowrap;
+  position: relative;
+}
+.ntab:hover  { color: var(--tx2); transform: translateY(-1px); }
+.ntab.active { color: var(--ac2); border-bottom-color: var(--ac); }
+.ntab.active::after {
+  content: ""; position: absolute; left: 50%; bottom: -2px;
+  width: 28px; height: 2px; background: var(--ac2);
+  transform: translateX(-50%); border-radius: 2px;
+  box-shadow: 0 0 10px 1px rgba(79,142,247,.6);
+  animation: tabGlow .5s var(--ease-out);
+}
+@keyframes tabGlow { from { opacity: 0; width: 0; } to { opacity: 1; width: 28px; } }
+
+/* =====================================================================
+   CONTENU PRINCIPAL
+   ===================================================================== */
+main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
+.tab-panel        { display: none; }
+.tab-panel.active {
+  display: block;
+  animation: panelIn .42s var(--ease-out);
+}
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* =====================================================================
+   BANDEAUX
+   ===================================================================== */
+.bandeau {
+  padding: 11px 14px; border-radius: var(--rs);
+  font-size: 12px; margin-bottom: 14px; line-height: 1.6;
+  border: 1px solid var(--brd2); border-left-width: 3px;
+  animation: bandeauIn .4s var(--ease-out);
+}
+@keyframes bandeauIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.bandeau-ok   { background: var(--pb);    color: var(--ac2); border-color: rgba(79,142,247,.3); border-left-color: var(--ac); }
+.bandeau-warn { background: var(--rd-bg); color: var(--rd);  border-color: var(--rd-brd); border-left-color: var(--rd); font-weight: 700; }
+.bandeau-info { background: var(--sur2);  color: var(--tx2); border-left-color: var(--tx3); }
+
+/* =====================================================================
+   CARDS / PARAMÈTRES
+   ===================================================================== */
+.params-row {
+  display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.card {
+  background: var(--sur); border: 1px solid var(--brd);
+  border-radius: var(--r); padding: 13px 16px;
+  flex: 1; min-width: 220px;
+  transition: border-color .25s var(--ease), box-shadow .25s var(--ease), transform .25s var(--ease);
+}
+.card:hover { border-color: var(--brd2); box-shadow: var(--sh-1); transform: translateY(-1px); }
+.card label {
+  display: block; font-size: 10px; font-weight: 700;
+  color: var(--tx3); text-transform: uppercase; letter-spacing: .05em;
+  margin-bottom: 7px;
+}
+.rate-row   { display: flex; align-items: center; gap: 6px; }
+.rate-input {
+  width: 64px; padding: 5px 7px;
+  border: 1.5px solid rgba(79,142,247,.35);
+  background: var(--pb); color: var(--ac2); font-weight: 700;
+  border-radius: 6px; font-size: 13px; font-family: var(--mono);
+  transition: border-color var(--transition);
+}
+.rate-input:not(:disabled):focus { border-color: var(--ac); }
+.rate-input:disabled { opacity: .6; cursor: not-allowed; }
+.param-text { font-size: 12px; color: var(--tx2); }
+
+/* =====================================================================
+   KPI
+   ===================================================================== */
+.kpi-row {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  background: var(--sur2); border: 1px solid var(--brd);
+  border-radius: var(--r); margin-bottom: 16px; overflow: hidden;
+}
+.kpi-card {
+  padding: 10px 14px;
+  border-right: 1px solid var(--brd);
+  transition: background .25s var(--ease), transform .2s var(--ease);
+  animation: kpiPop .45s var(--ease-out) backwards;
+}
+.kpi-card:hover { background: var(--sur3); }
+.kpi-card:nth-child(1) { animation-delay: .02s; }
+.kpi-card:nth-child(2) { animation-delay: .06s; }
+.kpi-card:nth-child(3) { animation-delay: .10s; }
+.kpi-card:nth-child(4) { animation-delay: .14s; }
+.kpi-card:nth-child(5) { animation-delay: .18s; }
+.kpi-card:nth-child(6) { animation-delay: .22s; }
+@keyframes kpiPop {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.kpi-card:last-child { border-right: none; }
+.kpi-label {
+  font-size: 9px; color: var(--tx3); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px;
+}
+.kpi-value { font-size: 18px; font-weight: 700; color: var(--tx); font-family: var(--mono); transition: color .3s var(--ease); }
+.kpi-value.gr { color: var(--gr); }
+.kpi-value.rd { color: var(--rd); }
+
+/* =====================================================================
+   TABLEAU
+   ===================================================================== */
+.table-wrap {
+  overflow-x: auto;
+  background: var(--sur);
+  border-radius: var(--r);
+  border: 1px solid var(--brd);
+  box-shadow: var(--sh-1);
+}
+table.data-table {
+  border-collapse: collapse; width: 100%;
+  font-size: 11.5px; min-width: 1450px;
+}
+table.data-table thead th {
+  background: var(--sur2); color: var(--tx3);
+  font-weight: 700; font-size: 9.5px;
+  text-transform: uppercase; letter-spacing: .04em;
+  padding: 8px; text-align: left;
+  position: sticky; top: 0; white-space: nowrap;
+  border: 1px solid var(--brd2);
+}
+table.data-table tbody td {
+  padding: 7px 8px;
+  border: 1px solid var(--brd);
+  white-space: nowrap; color: var(--tx2);
+  transition: background .2s var(--ease), box-shadow .2s var(--ease);
+}
+table.data-table tbody tr:hover td {
+  background: rgba(255,255,255,.03);
+  box-shadow: inset 2px 0 0 0 var(--ac);
+}
+table.data-table tbody tr {
+  animation: rowIn .35s var(--ease-out) backwards;
+}
+table.data-table tbody tr:nth-child(1)  { animation-delay: .01s; }
+table.data-table tbody tr:nth-child(2)  { animation-delay: .02s; }
+table.data-table tbody tr:nth-child(3)  { animation-delay: .03s; }
+table.data-table tbody tr:nth-child(4)  { animation-delay: .04s; }
+table.data-table tbody tr:nth-child(5)  { animation-delay: .05s; }
+table.data-table tbody tr:nth-child(6)  { animation-delay: .06s; }
+table.data-table tbody tr:nth-child(7)  { animation-delay: .07s; }
+table.data-table tbody tr:nth-child(8)  { animation-delay: .08s; }
+table.data-table tbody tr:nth-child(9)  { animation-delay: .09s; }
+table.data-table tbody tr:nth-child(10) { animation-delay: .10s; }
+table.data-table tbody tr:nth-child(n+11) { animation-delay: .11s; }
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Colonne dernière MAJ — deux lignes */
+.cell-maj { font-size: 10.5px; white-space: normal; min-width: 110px; }
+.maj-par  { font-size: 9.5px; color: var(--tx3); font-style: italic; }
+
+/* =====================================================================
+   BADGES
+   ===================================================================== */
+.badge {
+  padding: 3px 9px; border-radius: 999px; font-weight: 700;
+  font-size: 10px; display: inline-block; letter-spacing: .02em;
+  transition: transform .2s var(--ease-spring), box-shadow .2s var(--ease);
+}
+tr:hover .badge { transform: translateY(-1px); }
+.badge-gr { background: var(--gr-bg); color: var(--gr); border: 1px solid var(--gr-brd); }
+.badge-rd { background: var(--rd-bg); color: var(--rd); border: 1px solid var(--rd-brd); }
+.badge-am { background: var(--am-bg); color: var(--am); border: 1px solid var(--am-brd); animation: badgePulse 2.4s ease-in-out infinite; }
+@keyframes badgePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,.35); }
+  50%      { box-shadow: 0 0 0 4px rgba(245,158,11,0); }
+}
+.badge-nu { background: var(--sur3);  color: var(--tx3); border: 1px solid var(--brd2); }
+.badge-ac { background: var(--pb);    color: var(--ac2); border: 1px solid rgba(79,142,247,.3); }
+
+/* =====================================================================
+   CELLULES ÉDITABLES
+   ===================================================================== */
+input.cell-input, select.cell-input {
+  width: 100%; border: 1px solid transparent; background: transparent;
+  font-size: 11.5px; font-family: var(--font);
+  padding: 4px 5px; border-radius: 5px; color: var(--tx);
+  transition: border-color .2s var(--ease), background .2s var(--ease), box-shadow .2s var(--ease);
+  cursor: pointer;
+}
+input.cell-input:focus, select.cell-input:focus {
+  border-color: var(--ac); background: var(--bg); outline: none;
+  box-shadow: 0 0 0 3px var(--pb);
+}
+td.editable { background: var(--pb); transition: background .25s var(--ease); }
+td.editable input, td.editable select { color: var(--ac2); font-weight: 700; }
+td.num { text-align: right; font-family: var(--mono); }
+
+/* =====================================================================
+   FOOTER
+   ===================================================================== */
+.appfooter {
+  position: sticky; bottom: 0;
+  background: var(--sur); border-top: 1px solid var(--brd);
+  padding: 11px 20px;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 16px;
+}
+#footer-info { font-size: 11px; color: var(--tx3); }
+
+/* =====================================================================
+   TOAST
+   ===================================================================== */
+.toast {
+  position: fixed; bottom: 18px; right: 18px;
+  background: var(--sur); border: 1px solid var(--brd2);
+  color: var(--tx); padding: 11px 18px; border-radius: var(--rs);
+  font-size: 12px; font-weight: 600;
+  box-shadow: var(--sh-2); z-index: 200;
+  animation: slideUp .45s var(--ease-spring);
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px) scale(.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.toast.error   { background: var(--rd-bg); border-color: var(--rd-brd); color: var(--rd); }
+.toast.success { background: var(--gr-bg); border-color: var(--gr-brd); color: var(--gr); }
+
+/* =====================================================================
+   RESPONSIVE
+   ===================================================================== */
+@media (max-width: 960px) {
+  .kpi-row { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+  .kpi-row    { grid-template-columns: repeat(2, 1fr); }
+  .params-row { flex-direction: column; }
+  .tb-right   { gap: 4px; }
+  .tb-btn     { padding: 6px 9px; font-size: 10.5px; }
+  main        { padding: 12px 10px 24px; }
+}
+
+/* =====================================================================
+   IMPRESSION
+   ===================================================================== */
+.print-only { display: none; }
+#invoice-print-area { display: none; }
+
+.invoice-btn {
+  background: none; border: 1px solid var(--brd2); border-radius: 6px;
+  width: 24px; height: 22px; line-height: 1; cursor: pointer;
+  font-size: 12px; margin-left: 6px; color: var(--tx2); vertical-align: middle;
+  transition: border-color .2s var(--ease), color .2s var(--ease), transform .2s var(--ease-spring);
+}
+.invoice-btn:hover:not(:disabled) { border-color: var(--ac); color: var(--ac2); transform: scale(1.12) rotate(-4deg); }
+.invoice-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+@media print {
+  @page { margin: 12mm; }
+
+  /* ── Mode 1 : impression du suivi (onglet actif) ─────────────────── */
+  body.printing-table { background: #fff !important; }
+  body.printing-table .topbar, body.printing-table .fleet, body.printing-table .nav,
+  body.printing-table .appfooter, body.printing-table #toast,
+  body.printing-table dialog, body.printing-table #auth-overlay,
+  body.printing-table #closing-overlay { display: none !important; }
+
+  body.printing-table .print-only#print-header {
+    display: block !important; font-family: var(--font); font-size: 13px;
+    font-weight: 700; color: #000; margin-bottom: 10px;
+    border-bottom: 2px solid #000; padding-bottom: 8px;
+  }
+  body.printing-table main { padding: 0 !important; }
+  body.printing-table .tab-panel { padding: 0 !important; }
+  body.printing-table .bandeau { background: #f4f4f4 !important; color: #000 !important; border: 1px solid #ccc !important; }
+  body.printing-table .kpi-card { border: 1px solid #999 !important; background: #fff !important; }
+  body.printing-table .kpi-label, body.printing-table .kpi-value { color: #000 !important; }
+  body.printing-table .params-row { display: none; } /* taux/contrat déjà connus, inutiles à l'impression */
+  body.printing-table .data-table { border-collapse: collapse; width: 100%; font-size: 9px; }
+  body.printing-table .data-table th, body.printing-table .data-table td {
+    color: #000 !important; border: 1px solid #999 !important; background: #fff !important; padding: 3px 4px;
+  }
+  body.printing-table .data-table input, body.printing-table .data-table select {
+    border: none !important; background: transparent !important; color: #000 !important;
+    -webkit-appearance: none; appearance: none; font-size: 9px; padding: 0;
+  }
+  body.printing-table .badge { border: 1px solid #999 !important; background: #fff !important; color: #000 !important; }
+  body.printing-table .invoice-btn { display: none !important; }
+
+  /* ── Mode 2 : impression d'une facture individuelle ──────────────── */
+  body.printing-invoice #app-screen, body.printing-invoice #auth-overlay,
+  body.printing-invoice #closing-overlay, body.printing-invoice #toast,
+  body.printing-invoice dialog { display: none !important; }
+  body:not(.printing-invoice) #invoice-print-area { display: none !important; }
+  body.printing-invoice #invoice-print-area { display: block !important; }
+
+  .invoice-doc { font-family: var(--font); color: #000; background: #fff; padding: 0; max-width: 180mm; margin: 0 auto; }
+  .invoice-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 18px; }
+  .invoice-brand { font-size: 20px; font-weight: 800; }
+  .invoice-brand span { color: #666; }
+  .invoice-meta { text-align: right; font-size: 11px; line-height: 1.7; }
+  .invoice-parties { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 22px; font-size: 12px; line-height: 1.7; }
+  .invoice-vehicule, .invoice-calc { margin-bottom: 22px; }
+  .invoice-vehicule strong, .invoice-calc strong { display: block; font-size: 12px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .03em; }
+  .invoice-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .invoice-table th { text-align: left; font-weight: 600; padding: 6px 9px; border: 1px solid #999; background: #f4f4f4; width: 45%; }
+  .invoice-table td { padding: 6px 9px; border: 1px solid #999; }
+  .invoice-total th, .invoice-total td { font-weight: 800; font-size: 14px; background: #eef1fb; }
+  .invoice-note { font-size: 10px; color: #444; margin-top: 8px; line-height: 1.5; }
+  .invoice-footer { margin-top: 34px; font-size: 9px; color: #888; border-top: 1px solid #ccc; padding-top: 8px; }
+}
+
+</style>
+</head>
+<body>
+
+<a href="#main-content" class="skip-link">Aller au contenu principal</a>
+
+<!-- =====================================================================
+     ECRAN DE CONNEXION
+===================================================================== -->
+<div id="auth-overlay" role="main" aria-label="Écran de connexion">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="auth-logo-title" aria-label="ZEEV CARS">ZEEV<span>CARS</span></div>
+      <p class="auth-sub">Gestionnaire d'affaires</p>
+      <div class="f1-lights" id="f1-lights" aria-hidden="true">
+        <div class="f1-col"><div class="f1-light" id="l1"></div></div>
+        <div class="f1-col"><div class="f1-light" id="l2"></div></div>
+        <div class="f1-col"><div class="f1-light" id="l3"></div></div>
+        <div class="f1-col"><div class="f1-light" id="l4"></div></div>
+        <div class="f1-col"><div class="f1-light" id="l5"></div></div>
+      </div>
+    </div>
+
+    <div class="auth-card" role="form" aria-label="Connexion">
+
+      <p class="field-hint" style="margin-bottom:18px;">
+        La connexion se fait avec votre compte GitHub. Si vous n'avez pas
+        encore accès, demandez à Viktorija de vous ajouter comme
+        collaborateur sur le dépôt de données — voir la documentation.
+      </p>
+
+      <button id="login-btn" class="auth-btn" type="button">
+        <svg class="btn-icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="width:18px;height:18px;margin-right:8px;">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+            0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+            -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07
+            -1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0
+            .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82
+            2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95
+            .29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8
+            c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        <span class="btn-label">Se connecter avec GitHub</span>
+        <span class="btn-spinner hidden" aria-hidden="true"></span>
+      </button>
+      <div id="login-error" class="auth-err" role="alert" aria-live="assertive"></div>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================================
+     APPLICATION PRINCIPALE
+===================================================================== -->
+<div id="app-screen" class="hidden" role="application" aria-label="ZEEV CARS">
+
+  <header class="topbar" role="banner">
+    <div class="tb-left">
+      <span class="tb-brand" aria-label="ZEEV CARS">ZEEV<span>CARS</span></span>
+      <span class="tb-badge" id="current-user-label" aria-live="polite">—</span>
+    </div>
+    <div class="tb-right">
+      <span id="sync-status" class="sync-pill" aria-live="polite" aria-atomic="true">—</span>
+      <div class="tb-sep" role="separator"></div>
+      <button id="theme-btn" class="tb-btn" type="button" title="Basculer thème clair / sombre">Thème clair</button>
+      <button id="reload-btn" class="tb-btn" type="button" title="Recharger depuis GitHub">
+        <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
+        Recharger
+      </button>
+      <button id="save-btn" class="tb-btn save-btn" type="button">
+        <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293z"/></svg>
+        Enregistrer sur GitHub
+      </button>
+      <button id="print-btn" class="tb-btn" type="button" title="Imprimer l'onglet actif">
+        <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5 4a2 2 0 012-2h6a2 2 0 012 2v2H5V4zm-1 4a1 1 0 00-1 1v4a2 2 0 002 2h.5v2.5A.5.5 0 006 18h8a.5.5 0 00.5-.5V15h.5a2 2 0 002-2V9a1 1 0 00-1-1H4zm5 4H7v-2h2v2zm4 0h-2v-2h2v2z" clip-rule="evenodd"/></svg>
+        Imprimer
+      </button>
+      <button id="users-btn" class="tb-btn hidden" type="button" title="Gérer les collaborateurs (réservé aux Owners)">
+        <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+        Collaborateurs
+      </button>
+      <button id="export-btn" class="tb-btn hidden" type="button" title="Export comptable CSV (réservé aux accès complets)">
+        <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm6.293-2.707a1 1 0 001.414 0l4-4a1 1 0 10-1.414-1.414L11 11.586V3a1 1 0 10-2 0v8.586L6.707 9.293a1 1 0 10-1.414 1.414l4 4z" clip-rule="evenodd"/></svg>
+        Export CSV
+      </button>
+      <div class="tb-sep" role="separator"></div>
+      <button id="logout-btn" class="tb-btn danger" type="button">
+        <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"/></svg>
+        Déconnexion
+      </button>
+    </div>
+  </header>
+
+  <div class="fleet" role="complementary" aria-label="Sources de données">
+    <span class="fleet-label">SOURCES</span>
+    <span class="ft">ALPHABET</span><span class="ft">ATHLON</span>
+    <span class="ft-sep" aria-hidden="true">·</span>
+    <span class="ft">SIEMENS ENERGY</span>
+  </div>
+
+  <nav class="nav" role="tablist" aria-label="Onglets concessions">
+    <button class="ntab active" role="tab" aria-selected="true" aria-controls="panel-bmw" data-tab="bmw" id="tab-bmw">
+      Facturation BMW Ch.Pozzi
+    </button>
+    <button class="ntab" role="tab" aria-selected="false" aria-controls="panel-ford" data-tab="ford" id="tab-ford">
+      Facturation Ford Villeneuve
+    </button>
+    <button class="ntab" role="tab" aria-selected="false" aria-controls="panel-suivi" data-tab="suivi" id="tab-suivi">
+      All Vehicle Commande
+    </button>
+  </nav>
+
+  <main id="main-content">
+    <div id="print-header" class="print-only" aria-hidden="true"></div>
+
+
+    <!-- ============== PANEL BMW ============== -->
+    <section id="panel-bmw" class="tab-panel active" role="tabpanel" aria-labelledby="tab-bmw" data-concession="BMW_POZZI">
+      <div class="bandeau bandeau-ok" role="note">
+        Entité à facturer : <strong>CH. POZZI</strong> — SIREN 525580288 — SIRET 52558028800146<br>
+        12-14 Place du Général Koenig, 75017 Paris — Convention d'apporteur d'affaires signée le
+        <strong id="bmw-contract-date" data-source="CONFIG.contracts.BMW_POZZI.signedDate">—</strong>
+      </div>
+
+      <div class="params-row" id="params-bmw">
+            <span class="param-lock" title="Taux contractuel : source unique CONFIG.contracts, non modifiable en interface">🔒</span>
+          </label>
+          <div class="rate-row">
+            <input type="number" step="0.01" min="0" max="100" class="rate-input" id="rate-bmw" value="" disabled
+              aria-label="Taux de commission BMW en pourcentage, valeur contractuelle non modifiable" data-source="CONFIG.contracts.BMW_POZZI.rate">
+            <span class="param-text">%</span>
+          </div>
+        </div>
+        <div class="card">
+          <label>Base de calcul</label>
+          <span class="param-text">LLD/LOA : montant HT total du contrat de location signé (Art.5 al.2)</span>
+        </div>
+        <div class="card">
+          <label>Condition de déclenchement</label>
+          <span class="param-text">Encaissement effectif (Art.5)</span>
+        </div>
+      </div>
+
+      <div class="kpi-row" id="kpi-bmw" role="region" aria-label="Indicateurs BMW CH. Pozzi"></div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="table-bmw" aria-label="Véhicules BMW CH. Pozzi"></table>
+      </div>
+    </section>
+
+    <!-- ============== PANEL FORD ============== -->
+    <section id="panel-ford" class="tab-panel" role="tabpanel" aria-labelledby="tab-ford" data-concession="FORD_VILLENEUVE" hidden>
+      <div class="bandeau bandeau-warn" role="alert">
+        Aucune convention d'apporteur d'affaires signée avec Villeneuve Automobiles à ce jour.<br>
+        Cet onglet est une simulation de travail — aucun montant n'est exigible tant qu'aucun contrat n'est signé.<br>
+        Entité identifiée : VILLENEUVE AUTOMOBILES — SIREN 308622224 — SIRET 30862222400027 — Bd de l'Ouest, 59650 Villeneuve d'Ascq
+      </div>
+
+      <div class="params-row" id="params-ford"></label>
+          <div class="rate-row">
+            <input type="number" step="0.01" min="0" max="100" class="rate-input" id="rate-ford" value=""
+              aria-label="Taux de commission Ford en pourcentage — simulation locale, non sauvegardée" data-source="CONFIG.contracts.FORD_VILLENEUVE.rate">
+            <span class="param-text">%</span>
+          </div>
+          <span class="field-hint">Valeur de travail non persistée sur GitHub — réinitialisée à chaque session.</span>
+        </div>
+        <div class="card">
+          <label>Base de calcul</label>
+          <span class="param-text">Non définie contractuellement — simulation uniquement</span>
+        </div>
+        <div class="card">
+          <label>Condition de déclenchement</label>
+          <span class="param-text">Non définie — aucun contrat signé</span>
+        </div>
+      </div>
+
+      <div class="kpi-row" id="kpi-ford" role="region" aria-label="Indicateurs Ford Villeneuve"></div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="table-ford" aria-label="Véhicules Ford Villeneuve"></table>
+      </div>
+    </section>
+
+    <!-- ============== PANEL SUIVI ============== -->
+    <section id="panel-suivi" class="tab-panel" role="tabpanel" aria-labelledby="tab-suivi" tabindex="0" hidden>
+      <div class="bandeau bandeau-info" role="note">
+        Vue informative de gestion de flotte — aucun calcul de commission ici. Voir les onglets de facturation dédiés.
+      </div>
+      <div class="kpi-row" id="kpi-suivi" role="region" aria-label="Indicateurs flotte complète"></div>
+      <div class="table-wrap">
+        <table class="data-table" id="table-suivi" aria-label="Tous les véhicules"></table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="appfooter" role="contentinfo">
+    <span id="footer-info" aria-live="polite">—</span>
+  </footer>
+</div>
+
+<div id="toast" class="toast hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<!-- ============================================================
+     OVERLAY FERMETURE — Lotus Eletre + static TV
+============================================================ -->
+<div id="closing-overlay" class="closing-overlay hidden" aria-hidden="true">
+
+  <!-- Phase 1 : static TV -->
+  <canvas id="tv-static" class="tv-static"></canvas>
+  <div class="tv-scanlines"></div>
+  <div class="tv-nosignal">
+    <span>NO SIGNAL</span>
+    <span class="tv-ch" id="tv-ch">CH 00</span>
+  </div>
+
+  <!-- Flash de coupure (impact visuel au moment du cut statique → vidéo) -->
+  <div class="closing-flash" id="closing-flash"></div>
+
+  <!-- Bandes cinéma (format large pendant la scène Lotus) -->
+  <div class="cine-bar cine-bar-top"    id="cine-bar-top"></div>
+  <div class="cine-bar cine-bar-bottom" id="cine-bar-bottom"></div>
+
+  <!-- Phase 2-4 : Lotus
+       Contenu strictement décoratif (transition de fermeture de session) : le conteneur
+       parent #closing-overlay porte aria-hidden="true", donc invisible aux technologies
+       d'assistance — c'est le comportement attendu et suffisant ici. tabindex="-1" et
+       disablePictureInPicture évitent par ailleurs toute interaction clavier/PiP fortuite.
+       Si cet overlay venait à porter une information fonctionnelle (ex. message d'état),
+       il faudrait alors lui retirer aria-hidden et ajouter une alternative textuelle/<track>. -->
+  <div id="lotus-scene" class="lotus-scene">
+    <video id="lotus-video" class="lotus-video" muted playsinline preload="auto" loop
+      tabindex="-1" disablePictureInPicture disableRemotePlayback aria-hidden="true">
+      <source src="lotus.webm" type="video/webm">
+      <source src="lotus.mp4" type="video/mp4">
+    </video>
+    <!-- couche de récession : s'assombrit progressivement par-dessus la vidéo -->
+    <div class="lotus-dark" id="lotus-dark"></div>
+    <!-- halo phares persistants après que la voiture disparaît -->
+    <div class="lotus-headlights-glow" id="lotus-glow"></div>
+
+  </div>
+
+  <!-- Phase 5 : noir final -->
+  <div class="closing-blackout" id="closing-blackout"></div>
+</div>
+
+<!-- ============================================================
+     DIALOG — Gestion des collaborateurs (réservé aux Owners)
+============================================================ -->
+<dialog id="users-dialog" class="app-dialog" aria-label="Collaborateurs">
+  <header class="dialog-head">
+    <h2>Collaborateurs</h2>
+    <button type="button" class="dialog-close" id="users-dialog-close" aria-label="Fermer la fenêtre">✕</button>
+  </header>
+
+  <div class="dialog-body">
+    <p class="field-hint" style="margin-bottom:14px;">
+      Cette liste reflète les collaborateurs du dépôt GitHub de données.
+      L'ajout, le retrait ou le changement de niveau d'accès se fait
+      <strong>uniquement sur github.com</strong>, jamais dans cette fenêtre —
+      les modifications y sont immédiatement répercutées ici.
+    </p>
+    <table class="data-table users-table" id="users-table" aria-label="Liste des collaborateurs GitHub"></table>
+    <a id="manage-on-github-link" class="auth-btn" style="margin-top:16px;display:inline-block;text-align:center;text-decoration:none;" href="#" target="_blank" rel="noopener">
+      Gérer les accès sur GitHub →
+    </a>
+  </div>
+</dialog>
+
+<div id="invoice-print-area" class="print-only" aria-hidden="true"></div>
+
+<script>
+/* =====================================================================
+   FEUX F1 — ANIMATION OUVERTURE / FERMETURE
+   ===================================================================== */
+(function runF1Lights() {
+  const ids = ['l1','l2','l3','l4','l5'];
+  let running = true;
+  let timer = null;
+  let step = 0;
+
+  function lightOn(i) {
+    const el = document.getElementById(ids[i]);
+    if (el) { el.classList.remove('off','green'); el.classList.add('on'); }
+  }
+  function allOff() {
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.classList.remove('on','green'); el.classList.add('off'); }
+    });
+  }
+  function sequence() {
+    if (!running) return;
+    if (step < ids.length) {
+      lightOn(step); step++;
+      timer = setTimeout(sequence, 650);
+    } else {
+      timer = setTimeout(() => { allOff(); step = 0; timer = setTimeout(sequence, 2200); }, 900);
+    }
+  }
+
+  window.f1GoGreen = function() {
+    running = false; clearTimeout(timer);
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.classList.remove('on','off'); }
+    });
+    let i = 0;
+    function greenOn() {
+      if (i >= ids.length) return;
+      const el = document.getElementById(ids[i]);
+      if (el) el.classList.add('green');
+      i++; setTimeout(greenOn, 120);
+    }
+    greenOn();
+  };
+
+  window.f1GoRed = function(cb) {
+    running = false; clearTimeout(timer);
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.classList.remove('off','green'); el.classList.add('on'); }
+    });
+    setTimeout(() => { allOff(); if (cb) setTimeout(cb, 350); }, 600);
+  };
+
+  timer = setTimeout(sequence, 400);
+})();
+
+/* =====================================================================
+   CONFIGURATION — A ADAPTER AVANT DEPLOIEMENT
+   ===================================================================== */
+const CONFIG = {
+  /* URL du Worker Cloudflare déployé (voir DEPLOIEMENT.md) — seul composant
+     habilité à parler à l'API GitHub. Remplacez cette valeur par l'URL
+     affichée après `wrangler deploy`. */
+  apiBase: "https://zeev-cars-api.VOTRE-SOUS-DOMAINE.workers.dev",
+  /* Client ID de la GitHub OAuth App créée dans Settings -> Developer
+     settings -> OAuth Apps (voir DEPLOIEMENT.md). C'est une valeur PUBLIQUE
+     (elle apparaît dans l'URL du navigateur à chaque connexion) — aucun
+     risque à la versionner ici, contrairement au Client Secret qui reste
+     uniquement un secret Worker côté serveur. */
+  githubOAuthClientId: "COLLEZ_ICI_LE_CLIENT_ID_DE_VOTRE_GITHUB_OAUTH_APP",
+};
+
+/* =====================================================================
+   ETAT GLOBAL
+   state.sessionToken : jeton émis par le Worker (jamais un token GitHub —
+   le navigateur n'en détient et n'en voit jamais aucun).
+   state.contracts    : taux/dates contractuels, transmis par le Worker
+   UNIQUEMENT aux comptes en scope "FULL" — absent (undefined) pour un
+   compte "LIVRAISON_ONLY", qui ne peut donc techniquement pas y accéder.
+   ===================================================================== */
+const state = { user: null, sessionToken: null, data: null, contracts: null, dirty: false };
+
+function isApiConfigured() {
+  return CONFIG.apiBase && !CONFIG.apiBase.includes("VOTRE-SOUS-DOMAINE");
+}
+
+/* =====================================================================
+   APPELS AU WORKER — seul point de contact réseau de cette application.
+   Aucune URL api.github.com n'apparaît plus nulle part dans ce fichier.
+   ===================================================================== */
+async function apiCall(path, { method = "GET", body, auth = true } = {}) {
+  if (!isApiConfigured()) {
+    throw new Error("Configuration manquante : renseignez CONFIG.apiBase dans app.js avec l'URL de votre Worker (voir DEPLOIEMENT.md).");
+  }
+  const headers = { "Content-Type": "application/json" };
+  if (auth && state.sessionToken) headers["Authorization"] = `Bearer ${state.sessionToken}`;
+  const res = await fetch(`${CONFIG.apiBase}${path}`, {
+    method, headers, body: body ? JSON.stringify(body) : undefined,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `Erreur réseau (${res.status}).`);
+  return json;
+}
+
+const apiLoginGithub = (code, redirectUri) => apiCall("/api/login-github", { method: "POST", body: { code, redirectUri }, auth: false });
+const apiGetData         = () => apiCall("/api/data");
+const apiSaveData        = (payload) => apiCall("/api/data", { method: "POST", body: payload });
+const apiGetCollaborators = () => apiCall("/api/collaborators");
+
+/* Export comptable CSV — réservé aux comptes scope "FULL" (le Worker renvoie
+   403 sinon). Contrairement à apiCall(), la réponse n'est pas du JSON mais un
+   flux CSV à proposer en téléchargement direct dans le navigateur. */
+async function apiExportCsv() {
+  if (!isApiConfigured()) {
+    throw new Error("Configuration manquante : renseignez CONFIG.apiBase dans app.js avec l'URL de votre Worker (voir DEPLOIEMENT.md).");
+  }
+  const res = await fetch(`${CONFIG.apiBase}/api/export`, {
+    headers: { "Authorization": `Bearer ${state.sessionToken}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Erreur réseau (${res.status}).`);
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match ? match[1] : `zeev-cars-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* Le jeton émis par le Worker est signé (HMAC) mais pas chiffré : son
+   contenu (identité, scope, expiration) est lisible directement côté
+   client sans appel réseau supplémentaire. Toute falsification serait de
+   toute façon rejetée par le Worker (vérification de signature) à la
+   prochaine requête — ce décodage local ne fait donc courir aucun risque,
+   il évite juste un aller-retour réseau inutile au démarrage. */
+function decodeSessionToken(token) {
+  try {
+    const [body] = token.split(".");
+    const payload = JSON.parse(atob(body.replace(/-/g, "+").replace(/_/g, "/")));
+    if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return payload;
+  } catch (e) { return null; }
+}
+
+/* =====================================================================
+   PARAMETRES CONTRACTUELS — injectés depuis state.contracts (transmis par
+   le Worker, jamais codés en dur côté client, jamais envoyés du tout à un
+   compte en scope "LIVRAISON_ONLY").
+   ===================================================================== */
+function applyContractConfig() {
+  if (!state.contracts) return; // compte restreint : rien à injecter, le bloc est masqué
+  const bmw  = state.contracts.BMW_POZZI;
+  const ford = state.contracts.FORD_VILLENEUVE;
+
+  const dateEl = document.getElementById("bmw-contract-date");
+  if (dateEl) dateEl.textContent = bmw.signedDate ? fmtDateISOtoFR(bmw.signedDate) : "—";
+
+  const rateBmwEl = document.getElementById("rate-bmw");
+  if (rateBmwEl) {
+    rateBmwEl.value = Number(bmw.rate).toFixed(2);
+    rateBmwEl.title = `Taux contractuel verrouillé côté serveur (${bmw.rate}%)`;
+  }
+  const rateFordEl = document.getElementById("rate-ford");
+  if (rateFordEl && rateFordEl.value === "") {
+    rateFordEl.value = Number(ford.rate).toFixed(2);
+  }
+}
+
+/* =====================================================================
+   POLICES EXTERNES — dégradation contrôlée
+   Si Google Fonts est bloqué (proxy d'entreprise / environnement isolé),
+   la pile de secours CSS (sans-serif / monospace) s'applique déjà
+   nativement ; on le signale simplement en console pour le diagnostic,
+   sans bloquer le rendu ni afficher d'erreur à l'utilisateur final.
+   ===================================================================== */
+if (window.document && document.fonts && document.fonts.ready) {
+  document.fonts.ready
+    .then(() => {
+      const syneLoaded = document.fonts.check("16px Syne");
+      if (!syneLoaded) {
+        document.documentElement.classList.add("fonts-fallback");
+        console.warn("[ZEEV] Police Syne non chargée — pile de secours système active.");
+      }
+    })
+    .catch(() => {});
+}
+
+/* =====================================================================
+   GESTION DES COMPTES — entièrement déléguée à GitHub OAuth + au Worker
+   (voir startGithubLogin, handleGithubCallback, apiLoginGithub). Aucun mot
+   de passe applicatif n'existe : ce fichier ne contient et ne peut contenir
+   aucun secret d'authentification.
+   ===================================================================== */
+
+/* =====================================================================
+   UTILITAIRES
+   ===================================================================== */
+function fmtDateISOtoFR(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+function fmtEUR(n) {
+  if (n === null || n === undefined || n === "") return "";
+  return Number(n).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+}
+function nowStamp() { return new Date().toLocaleString("fr-FR"); }
+
+function toast(msg, type = "info") {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "toast " + type;
+  el.classList.remove("hidden");
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => el.classList.add("hidden"), 4200);
+}
+
+function tauxConcession(concessionKey) {
+  const id = concessionKey === "BMW_POZZI" ? "rate-bmw" : "rate-ford";
+  const el = document.getElementById(id);
+  const v = parseFloat(el ? el.value : 0);
+  return isNaN(v) ? 0 : v / 100;
+}
+function computeCommission(v) {
+  const taux = tauxConcession(v.concession);
+  if (v.statut_livraison === "LIVRE" && v.pv_signe === "SIGNE" &&
+      v.statut_paiement === "PAYE" && v.valeur_vente_ht) {
+    return Number(v.valeur_vente_ht) * taux;
+  }
+  return 0;
+}
+/* Un véhicule n'est Facturable qu'après remise EFFECTIVE au conducteur,
+   attestée par un PV de mise à disposition signé de sa part (conformité
+   du véhicule à sa commande) — le statut "Livré" seul ne suffit pas :
+   il ne fait que constater une étape logistique, pas un acte contractuel
+   opposable. C'est le PV signé qui sécurise juridiquement la facturation,
+   en complément de l'encaissement effectif (Art.5 — condition contractuelle
+   de déclenchement de la commission). */
+function computeEligibilite(v) {
+  if (v.statut_livraison !== "LIVRE") return "ATTENTE_LIVRAISON";
+  if (v.pv_signe !== "SIGNE") return "ATTENTE_PV";
+  if (v.statut_paiement !== "PAYE") return "ATTENTE_PAIEMENT";
+  return "FACTURABLE";
+}
+
+const LABELS = {
+  statut_livraison: { LIVRE: "Livré", EN_COMMANDE: "En cours de commande", NON_LIVRE: "Non livré" },
+  statut_paiement: { INCONNU: "Inconnu / à vérifier", PAYE: "Payé", NON_PAYE: "Non payé" },
+  statut_facturation: { NON_FACTURE: "Non facturé", FACTURE: "Facturé" },
+  pv_signe: { NON_SIGNE: "Non signé", SIGNE: "Signé" },
+  eligibilite: {
+    FACTURABLE: "Facturable",
+    ATTENTE_LIVRAISON: "En attente de livraison",
+    ATTENTE_PV: "Livré — PV non signé",
+    ATTENTE_PAIEMENT: "PV signé — en attente de paiement",
+  },
+};
+const BADGE_CLASS = {
+  LIVRE: "badge-gr", NON_LIVRE: "badge-rd", EN_COMMANDE: "badge-am",
+  FACTURABLE: "badge-gr", ATTENTE_LIVRAISON: "badge-rd",
+  ATTENTE_PV: "badge-am", ATTENTE_PAIEMENT: "badge-am",
+  FACTURE: "badge-ac", NON_FACTURE: "badge-nu",
+  SIGNE: "badge-gr", NON_SIGNE: "badge-rd",
+};
+
+/* =====================================================================
+   INDICATEUR DIRTY — bouton Enregistrer
+   ===================================================================== */
+function updateSaveBtn() {
+  const btn = document.getElementById("save-btn");
+  if (!btn) return;
+  if (state.dirty) {
+    btn.classList.add("dirty");
+    btn.title = "Des modifications non enregistrées sont en attente";
+  } else {
+    btn.classList.remove("dirty");
+    btn.title = "";
+  }
+}
+
+/* =====================================================================
+   THEME — CORRECTION : la fonction toggleTheme était référencée par le
+   bouton (ligne ~1357) mais n'existait nulle part dans le fichier original
+   ("ReferenceError: toggleTheme is not defined" au clic). Le thème "sombre"
+   est la valeur par défaut (aucun attribut data-theme), le CSS bascule en
+   clair via [data-theme="light"] sur <html> — voir le <style> en tête de
+   fichier. Le choix est mémorisé en localStorage pour persister entre deux
+   visites (pas de donnée sensible stockée ici, uniquement une préférence
+   d'affichage).
+   ===================================================================== */
+const THEME_STORAGE_KEY = "zeev_theme";
+
+function applyTheme(theme) {
+  const root = document.documentElement;
+  const btn  = document.getElementById("theme-btn");
+  if (theme === "light") {
+    root.setAttribute("data-theme", "light");
+    if (btn) btn.textContent = "Thème sombre";
+  } else {
+    root.removeAttribute("data-theme");
+    if (btn) btn.textContent = "Thème clair";
+  }
+}
+
+function toggleTheme() {
+  const isLight = document.documentElement.getAttribute("data-theme") === "light";
+  const next = isLight ? "dark" : "light";
+  applyTheme(next);
+  try { localStorage.setItem(THEME_STORAGE_KEY, next); } catch (e) { /* stockage indisponible : on ignore, le thème reste valable pour la session en cours */ }
+}
+
+// Applique la préférence mémorisée dès le chargement du script, avant même
+// la connexion, pour éviter un flash visuel entre thème par défaut et thème
+// choisi par l'utilisateur.
+(function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_STORAGE_KEY); } catch (e) { /* navigation privée ou stockage bloqué : on garde le thème par défaut */ }
+  if (saved === "light") applyTheme("light");
+})();
+
+/* =====================================================================
+   LOGIN
+   ===================================================================== */
+document.getElementById("login-btn").addEventListener("click", startGithubLogin);
+
+document.getElementById("theme-btn") &&
+  document.getElementById("theme-btn").addEventListener("click", toggleTheme);
+
+const OAUTH_STATE_KEY = "zeev_oauth_state";
+
+// URL de callback : la page elle-même, sans paramètres de requête. DOIT être
+// EXACTEMENT l'URL enregistrée comme "Authorization callback URL" dans la
+// GitHub OAuth App (voir DEPLOIEMENT.md).
+function oauthRedirectUri() {
+  return window.location.origin + window.location.pathname;
+}
+
+function startGithubLogin() {
+  const errEl = document.getElementById("login-error");
+  errEl.classList.remove("show");
+  errEl.textContent = "";
+
+  if (!CONFIG.githubOAuthClientId || CONFIG.githubOAuthClientId.includes("COLLEZ_ICI")) {
+    errEl.textContent = "Configuration manquante : renseignez CONFIG.githubOAuthClientId (voir DEPLOIEMENT.md).";
+    errEl.classList.add("show");
+    return;
+  }
+
+  const state = crypto.randomUUID();
+  try { sessionStorage.setItem(OAUTH_STATE_KEY, state); } catch (e) { /* navigation privée : la vérification de state sera simplement ignorée au retour */ }
+
+  const params = new URLSearchParams({
+    client_id: CONFIG.githubOAuthClientId,
+    redirect_uri: oauthRedirectUri(),
+    scope: "read:user",
+    state,
+  });
+  window.location.href = `https://github.com/login/oauth/authorize?${params.toString()}`;
+}
+
+// Traite le retour de GitHub (?code=...&state=...) après autorisation. Doit
+// être appelé au chargement de la page, avant tryRestoreSession().
+async function handleGithubCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code  = params.get("code");
+  const state = params.get("state");
+  if (!code) return false;
+
+  // Nettoie l'URL immédiatement (le code ne doit jamais rester dans
+  // l'historique du navigateur ni être réutilisable par rechargement).
+  const cleanUrl = oauthRedirectUri();
+  window.history.replaceState({}, document.title, cleanUrl);
+
+  let savedState = null;
+  try { savedState = sessionStorage.getItem(OAUTH_STATE_KEY); sessionStorage.removeItem(OAUTH_STATE_KEY); } catch (e) {}
+  if (savedState && state && savedState !== state) {
+    showLoginError("Connexion refusée (anomalie de sécurité OAuth). Réessayez.");
+    return true;
+  }
+
+  setLoginLoading(true);
+  try {
+    const { token, user } = await apiLoginGithub(code, cleanUrl);
+    persistSession(token, user);
+    if (window.f1GoGreen) f1GoGreen();
+    await new Promise(r => setTimeout(r, 700));
+    await bootApp();
+  } catch (e) {
+    showLoginError(e.message || "Connexion impossible.");
+  } finally {
+    setLoginLoading(false);
+  }
+  return true;
+}
+
+function persistSession(token, user) {
+  state.sessionToken = token;
+  state.user = user;
+  try { localStorage.setItem("zeev_session", token); } catch (e) { /* stockage indisponible : la session reste valable pour cet onglet uniquement */ }
+}
+
+function showLoginError(msg) {
+  const errEl = document.getElementById("login-error");
+  errEl.textContent = msg;
+  errEl.classList.add("show");
+}
+
+function setLoginLoading(loading) {
+  const btn     = document.getElementById("login-btn");
+  const label   = btn.querySelector(".btn-label");
+  const spinner = btn.querySelector(".btn-spinner");
+  btn.disabled  = loading;
+  if (label)   label.textContent = loading ? "Connexion…" : "Se connecter avec GitHub";
+  if (spinner) spinner.classList.toggle("hidden", !loading);
+}
+
+function tryRestoreSession() {
+  let token = null;
+  try {
+    token = localStorage.getItem("zeev_session") || sessionStorage.getItem("zeev_session");
+  } catch (e) { return false; }
+  if (!token) return false;
+
+  const payload = decodeSessionToken(token);
+  if (!payload) return false; // absent, corrompu, ou expiré : nouveau login requis
+
+  state.sessionToken = token;
+  state.user = payload;
+  return true;
+}
+
+document.getElementById("logout-btn").addEventListener("click", () => performLogout(false));
+
+function performLogout(silent) {
+  if (!silent && state.dirty &&
+      !confirm("Des modifications non enregistrées seront perdues. Se déconnecter quand même ?")) return;
+  try {
+    localStorage.removeItem("zeev_session");
+    sessionStorage.removeItem("zeev_session");
+  } catch (e) {}
+  playClosingAnimation();
+}
+
+function playClosingAnimation() {
+  const overlay    = document.getElementById("closing-overlay");
+  if (!overlay) { window.location.reload(); return; }
+
+  const canvas      = document.getElementById("tv-static");
+  const flash        = document.getElementById("closing-flash");
+  const tvCh          = document.getElementById("tv-ch");
+  const scene        = document.getElementById("lotus-scene");
+  const video        = document.getElementById("lotus-video");
+  const glow         = document.getElementById("lotus-glow");
+  const blackout     = document.getElementById("closing-blackout");
+
+  // ── Canvas TV static ──────────────────────────────────────────────
+  let staticRaf = null;
+  function drawStatic() {
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const img = ctx.createImageData(canvas.width, canvas.height);
+    const d   = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const v = Math.random() * 255 | 0;
+      d[i] = d[i+1] = d[i+2] = v;
+      d[i+3] = 200;
+    }
+    ctx.putImageData(img, 0, 0);
+    staticRaf = requestAnimationFrame(drawStatic);
+  }
+  function stopStatic() {
+    if (staticRaf) { cancelAnimationFrame(staticRaf); staticRaf = null; }
+    if (canvas) { canvas.classList.add("hide"); }
+    overlay.classList.remove("phase-static");
+  }
+  // petit défilement de chaîne (purement décoratif, "CH 00" → "CH 0x")
+  function glitchPulse() {
+    if (canvas) {
+      canvas.classList.remove("glitch");
+      void canvas.offsetWidth; // relance l'animation CSS
+      canvas.classList.add("glitch");
+    }
+    if (tvCh) tvCh.textContent = "CH 0" + (Math.floor(Math.random() * 9));
+  }
+
+  // ── Séquence ──────────────────────────────────────────────────────
+  // 0ms : overlay apparaît
+  overlay.classList.remove("hidden");
+  requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add("show")));
+
+  // 80ms : static TV démarre, effet "channel surf"
+  setTimeout(() => {
+    overlay.classList.add("phase-static");
+    drawStatic();
+    if (canvas) canvas.classList.add("show");
+    glitchPulse();
+  }, 80);
+
+  // 320ms / 560ms : deux à-coups de chaîne supplémentaires avant de se fixer
+  setTimeout(glitchPulse, 320);
+  setTimeout(glitchPulse, 560);
+
+  // 880ms : flash blanc bref — impact du cut
+  setTimeout(() => { if (flash) { flash.classList.remove("pulse"); void flash.offsetWidth; flash.classList.add("pulse"); } }, 880);
+
+  // 900ms : coupure brutale → Lotus apparaît, bandes cinéma se déploient
+  setTimeout(() => {
+    stopStatic();
+    if (video) { video.currentTime = 0; video.play().catch(() => {}); }
+    if (scene) scene.classList.add("show");
+    overlay.classList.add("phase-cine");
+  }, 900);
+
+  // 3800ms : recul de la voiture
+  setTimeout(() => {
+    if (scene) scene.classList.add("recede");
+  }, 3800);
+
+  // 4600ms : les bandes cinéma se referment doucement avec le recul
+  setTimeout(() => {
+    overlay.classList.remove("phase-cine");
+    overlay.classList.add("phase-cine-out");
+  }, 4600);
+
+  // 5200ms : halo phares seuls visibles
+  setTimeout(() => {
+    if (glow) glow.classList.add("show");
+  }, 5200);
+
+  // 6800ms : halo des phares s'estompe
+  setTimeout(() => {
+    if (glow) glow.classList.add("fade");
+  }, 6800);
+
+  // 7400ms : noir total, vignette
+  setTimeout(() => {
+    if (blackout) blackout.classList.add("show");
+  }, 7400);
+
+  // 8900ms : reload
+  setTimeout(() => window.location.reload(), 8900);
+}
+
+/* =====================================================================
+   BOOT
+   ===================================================================== */
+async function bootApp() {
+  document.getElementById("auth-overlay").classList.add("hidden");
+  document.getElementById("app-screen").classList.remove("hidden");
+
+  const labelEl = document.getElementById("current-user-label");
+  labelEl.textContent = `${state.user.initials} — ${state.user.role === "FACTURATION" ? "Facturation" : "Suivi livraisons"}`;
+  labelEl.title = state.user.name;
+
+  if (!isApiConfigured()) {
+    const fleetLabel = document.querySelector(".fleet-label");
+    if (fleetLabel) fleetLabel.insertAdjacentHTML("afterend",
+      '<span class="ft offline-badge" title="CONFIG.apiBase n\'est pas encore renseigné dans app.js — voir DEPLOIEMENT.md.">⚠ WORKER NON CONFIGURÉ</span>');
+  }
+
+  refreshOwnerUI();
+  await reloadData();
+  setupTabs();
+  setupSave();
+  setupReload();
+  setupPrint();
+  setupUsersAdmin();
+  setupExport();
+}
+
+function refreshOwnerUI() {
+  const btn = document.getElementById("users-btn");
+  if (btn) btn.classList.toggle("hidden", !state.user.isOwner);
+  // CORRECTION (suite audit) : le bouton d'export comptable est réservé aux
+  // comptes à accès complet (Owner ou collaborateur en scope "FULL") — il ne
+  // doit jamais être visible pour un compte "LIVRAISON_ONLY", cohérent avec
+  // le filtrage déjà appliqué côté Worker sur /api/export.
+  const exportBtn = document.getElementById("export-btn");
+  if (exportBtn) exportBtn.classList.toggle("hidden", state.user.scope !== "FULL" && !state.user.isOwner);
+}
+
+function setupExport() {
+  const btn = document.getElementById("export-btn");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    try {
+      await apiExportCsv();
+    } catch (e) {
+      alert(e.message || "Export impossible.");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+async function reloadData() {
+  setSyncStatus("Chargement…", "loading");
+  try {
+    const payload = await apiGetData();
+    state.data = {
+      meta: payload.meta || {},
+      vehicules: payload.vehicules || [],
+    };
+    /* undefined pour un compte "LIVRAISON_ONLY" : le Worker ne l'envoie
+       jamais à ces comptes — applyContractConfig() s'abstient alors. */
+    state.contracts = payload.contracts || null;
+
+    state.dirty = false;
+    updateSaveBtn();
+    applyContractConfig();
+    setSyncStatus("Synchronisé", "ok");
+    renderAll();
+  } catch (e) {
+    if (/session/i.test(e.message || "")) {
+      toast("Votre session a expiré — veuillez vous reconnecter.", "error");
+      performLogout(true);
+      return;
+    }
+    setSyncStatus("Erreur de chargement", "error");
+    toast(e.message, "error");
+  }
+}
+
+function setSyncStatus(text, type = "") {
+  const el = document.getElementById("sync-status");
+  el.textContent = text;
+  el.className = "sync-pill" + (type ? " sync-" + type : "");
+}
+
+function setupReload() {
+  document.getElementById("reload-btn").addEventListener("click", async () => {
+    if (state.dirty && !confirm("Des modifications non enregistrées seront perdues. Recharger quand même ?")) return;
+    await reloadData();
+  });
+}
+
+/* =====================================================================
+   IMPRESSION
+   ===================================================================== */
+const PANEL_PRINT_LABEL = {
+  "panel-bmw":   "Facturation BMW Ch.Pozzi",
+  "panel-ford":  "Facturation Ford Villeneuve (simulation — non contractuel)",
+  "panel-suivi": "All Vehicle Commande",
+};
+
+function setupPrint() {
+  const btn = document.getElementById("print-btn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const activePanel = document.querySelector(".tab-panel.active");
+    const label = (activePanel && PANEL_PRINT_LABEL[activePanel.id]) || "Suivi flotte";
+    const header = document.getElementById("print-header");
+    if (header) {
+      header.textContent =
+        `ZEEV CARS — ${label} — Imprimé le ${new Date().toLocaleDateString("fr-FR")} par ${state.user.name}`;
+    }
+    document.body.classList.add("printing-table");
+    window.print();
+  });
+}
+
+window.addEventListener("afterprint", () => {
+  document.body.classList.remove("printing-table");
+  document.body.classList.remove("printing-invoice");
+});
+
+/* Facture de commission individuelle — calcul depuis CONFIG.contracts
+   (source unique du taux, jamais recalculé/dupliqué ailleurs). Disponible
+   uniquement pour BMW Ch.Pozzi (convention réellement signée) et pour les
+   véhicules au statut "Facturable" (livré + payé + valeur renseignée). */
+function printInvoice(id, concession) {
+  if (concession !== "BMW_POZZI") {
+    toast("Facture indisponible : aucune convention signée pour cette concession (simulation uniquement).", "error");
+    return;
+  }
+  const v = (state.data.vehicules || []).find(x => x.id === id);
+  if (!v) { toast("Véhicule introuvable.", "error"); return; }
+  if (computeEligibilite(v) !== "FACTURABLE") {
+    toast("Ce véhicule n'est pas encore Facturable (PV de mise à disposition signé + payé + valeur de vente requis).", "error");
+    return;
+  }
+
+  const rate       = CONFIG.contracts.BMW_POZZI.rate;
+  const valeur     = Number(v.valeur_vente_ht) || 0;
+  const commission = +(valeur * rate / 100).toFixed(2);
+  const today      = new Date().toLocaleDateString("fr-FR");
+  const statutPaiementLabel = (LABELS.statut_paiement && LABELS.statut_paiement[v.statut_paiement]) || v.statut_paiement;
+
+  document.getElementById("invoice-print-area").innerHTML = `
+    <div class="invoice-doc">
+      <header class="invoice-head">
+        <div class="invoice-brand">ZEEV<span>CARS</span></div>
+        <div class="invoice-meta">
+          <div>Facture de commission d'apporteur d'affaires</div>
+          <div>Date d'émission : ${esc(today)}</div>
+          <div>Référence véhicule : ${esc(v.immat || v.id)}</div>
+        </div>
+      </header>
+
+      <section class="invoice-parties">
+        <div>
+          <strong>Émetteur</strong><br>
+          ${esc(state.user.name)}<br>
+          ZEEV CARS — Apporteur d'affaires
+        </div>
+        <div>
+          <strong>Destinataire</strong><br>
+          CH. POZZI<br>
+          SIREN 525580288 — SIRET 52558028800146<br>
+          12-14 Place du Général Koenig, 75017 Paris
+        </div>
+      </section>
+
+      <section class="invoice-vehicule">
+        <strong>Véhicule concerné</strong>
+        <table class="invoice-table">
+          <tr><th>Client</th><td>${esc(v.client)}</td></tr>
+          <tr><th>Conducteur</th><td>${esc(v.conducteur)}</td></tr>
+          <tr><th>Modèle</th><td>${esc(v.modele)}</td></tr>
+          <tr><th>Immatriculation</th><td>${esc(v.immat) || "—"}</td></tr>
+          <tr><th>Date de livraison</th><td>${fmtDateISOtoFR(v.date_livraison) || "—"}</td></tr>
+        </table>
+      </section>
+
+      <section class="invoice-calc">
+        <strong>Calcul de la commission</strong>
+        <table class="invoice-table">
+          <tr><th>Valeur de vente HT du contrat</th><td>${fmtEUR(valeur)}</td></tr>
+          <tr><th>Taux de commission contractuel</th><td>${rate.toFixed(2)} %</td></tr>
+          <tr class="invoice-total"><th>Commission HT due</th><td>${fmtEUR(commission)}</td></tr>
+        </table>
+        <p class="invoice-note">
+          Base de calcul : montant HT total du contrat de location signé (Art.5 al.2).
+          Conformité du véhicule à la commande attestée par PV de mise à disposition signé du conducteur
+          le ${fmtDateISOtoFR(v.date_pv_signe) || "—"}. Condition de déclenchement de la commission :
+          encaissement effectif (Art.5) — statut paiement constaté : ${esc(statutPaiementLabel)}.
+        </p>
+      </section>
+
+      <footer class="invoice-footer">
+        Document généré automatiquement par ZEEV CARS le ${esc(today)} — à vérifier avant envoi officiel.
+      </footer>
+    </div>`;
+
+  document.body.classList.add("printing-invoice");
+  window.print();
+}
+
+function setupTabs() {
+  document.querySelectorAll(".ntab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".ntab").forEach(b => {
+        b.classList.remove("active");
+        b.setAttribute("aria-selected", "false");
+      });
+      document.querySelectorAll(".tab-panel").forEach(p => {
+        p.classList.remove("active");
+        p.hidden = true;
+      });
+      btn.classList.add("active");
+      btn.setAttribute("aria-selected", "true");
+      const panel = document.getElementById("panel-" + btn.dataset.tab);
+      panel.classList.add("active");
+      panel.hidden = false;
+    });
+
+    /* Navigation clavier dans la tablist (flèches gauche/droite) */
+    btn.addEventListener("keydown", (e) => {
+      const tabs = [...document.querySelectorAll(".ntab")];
+      const idx  = tabs.indexOf(e.currentTarget);
+      if (e.key === "ArrowRight") { tabs[(idx + 1) % tabs.length].focus(); e.preventDefault(); }
+      if (e.key === "ArrowLeft")  { tabs[(idx - 1 + tabs.length) % tabs.length].focus(); e.preventDefault(); }
+    });
+  });
+
+  ["rate-bmw", "rate-ford"].forEach(id => {
+    document.getElementById(id).addEventListener("input", renderAll);
+  });
+}
+
+function setupSave() {
+  document.getElementById("save-btn").addEventListener("click", async () => {
+    if (!state.dirty) { toast("Aucune modification à enregistrer."); return; }
+    const btn = document.getElementById("save-btn");
+    btn.disabled = true;
+    setSyncStatus("Enregistrement…", "loading");
+    try {
+      await apiSaveData({
+        vehicules: state.data.vehicules,
+      });
+      state.dirty = false;
+      updateSaveBtn();
+      setSyncStatus("Synchronisé", "ok");
+      toast("Modifications enregistrées sur GitHub. (Rappel : les taux/commissions Ford restent une simulation locale, non incluse dans cet enregistrement.)", "success");
+    } catch (e) {
+      setSyncStatus("Erreur d'enregistrement", "error");
+      toast(e.message, "error");
+      if (/conflit/i.test(e.message || "")) await reloadData();
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+/* =====================================================================
+   RENDU
+   ===================================================================== */
+function renderAll() {
+  renderConcessionPanel("BMW_POZZI",      "table-bmw",   "kpi-bmw");
+  renderConcessionPanel("FORD_VILLENEUVE","table-ford",  "kpi-ford");
+  renderSuivi();
+  document.getElementById("footer-info").textContent =
+    `${state.data.vehicules.length} véhicules — dernière synchronisation locale : ${nowStamp()}`;
+}
+
+function getVehicules(concession) {
+  return state.data.vehicules.filter(v => v.concession === concession);
+}
+
+function renderKPI(containerId, vehicules, simulation = false) {
+  const total              = vehicules.length;
+  const livres             = vehicules.filter(v => v.statut_livraison === "LIVRE").length;
+  const nonLivres          = total - livres;
+  const facturables        = vehicules.filter(v => computeEligibilite(v) === "FACTURABLE").length;
+  const valeurVenteTotale  = vehicules.reduce((s, v) => s + (Number(v.valeur_vente_ht) || 0), 0);
+  const commissionTotale   = vehicules.reduce((s, v) => s + computeCommission(v), 0);
+  const suffix             = simulation ? " (simulation)" : "";
+
+  const baseCards = `
+    <div class="kpi-card"><div class="kpi-label">Total véhicules</div><div class="kpi-value">${total}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Livrés</div><div class="kpi-value gr">${livres}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Non livrés</div><div class="kpi-value rd">${nonLivres}</div></div>`;
+
+  const financialCards = `
+    <div class="kpi-card"><div class="kpi-label">Facturables</div><div class="kpi-value gr">${facturables}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Valeur de vente totale (HT)</div><div class="kpi-value">${fmtEUR(valeurVenteTotale)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Commission HT totale${suffix}</div><div class="kpi-value">${fmtEUR(commissionTotale)}</div></div>`;
+
+  document.getElementById(containerId).innerHTML = baseCards + (isRestricted() ? "" : financialCards);
+}
+
+/* Visibilité restreinte : collaborateur créé avec scope "LIVRAISON_ONLY".
+   Le compte système (Viktorija) et tout collaborateur "FULL" voient tout. */
+function isRestricted() {
+  return !!(state.user && state.user.scope === "LIVRAISON_ONLY");
+}
+
+function badge(value, labelMap, classMap) {
+  const label = labelMap[value] || value || "—";
+  const cls   = classMap[value] || "badge-nu";
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function esc(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function renderConcessionPanel(concession, tableId, kpiId) {
+  const vehicules         = getVehicules(concession);
+  /* Ford = aucune convention signée à ce jour → tout ce qui dépend du taux
+     (commission affichée) est une SIMULATION locale. Elle n'est jamais incluse
+     dans le payload envoyé via apiSaveData : seuls les champs métiers (livraison,
+     paiement, facturation...) du véhicule sont persistés — voir attachCellHandlers. */
+  const simulation = concession === "FORD_VILLENEUVE";
+  const restricted = isRestricted();
+  renderKPI(kpiId, vehicules, simulation);
+
+  /* Visibilité restreinte (collaborateur "Livraison uniquement") : le bloc
+     taux/base de calcul/condition de déclenchement est entièrement masqué —
+     pas seulement vidé, pour qu'aucun pourcentage ne soit visible même dans
+     le DOM. */
+  const paramsBlock = document.getElementById(concession === "BMW_POZZI" ? "params-bmw" : "params-ford");
+  if (paramsBlock) paramsBlock.classList.toggle("hidden", restricted);
+
+  /* Tout est modifiable manuellement, sans verrou par rôle. Seuls restent en lecture seule les champs qui sont le
+     RÉSULTAT d'un calcul ou d'un horodatage automatique : Commission HT et
+     Éligibilité (formules dérivées), N° (rang d'affichage), Dernière MAJ
+     (traçabilité auto). Tout le reste se modifie en cliquant dans la cellule. */
+  const canEdit = true;
+
+  const headers = restricted
+    ? ["N°", "Client", "Conducteur", "Modèle / Version", "Immat.", "VIN",
+       "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
+       "Remarques", "Source", "Dernière MAJ"]
+    : ["N°", "Client", "Conducteur", "Modèle / Version", "Immat.", "VIN",
+       "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
+       "Valeur de vente du véhicule HT (€)",
+       "Statut paiement", "Statut facturation", "N° facture", "Date facture",
+       simulation ? "Commission HT (simulation)" : "Commission HT",
+       "Éligibilité", "Facture", "Remarques", "Source", "Dernière MAJ"];
+
+  let html = "<thead><tr>" + headers.map(h => `<th scope="col">${h}</th>`).join("") + "</tr></thead><tbody>";
+
+  vehicules.forEach((v, i) => {
+    const commission  = computeCommission(v);
+    const eligibilite = computeEligibilite(v);
+    const canInvoice  = !simulation && eligibilite === "FACTURABLE";
+    const invoiceTitle = canInvoice
+      ? "Imprimer la facture de commission pour ce véhicule"
+      : simulation
+        ? "Aucune convention signée avec Villeneuve Automobiles — facture non disponible (simulation)"
+        : "Disponible uniquement lorsque le véhicule est Facturable (PV signé + payé + valeur renseignée)";
+
+    html += `<tr data-id="${esc(v.id)}">`;
+    html += `<td>${i + 1}</td>`;
+
+    html += cellInput(v.id, "client",     v.client,     canEdit, "text");
+    html += cellInput(v.id, "conducteur", v.conducteur, canEdit, "text");
+    html += cellInput(v.id, "modele",     v.modele,     canEdit, "text");
+
+    html += cellInput(v.id, "immat",         v.immat,         canEdit,   "text");
+    html += cellInput(v.id, "vin",           v.vin,           canEdit,   "text");
+
+    html += cellSelect(v.id, "statut_livraison", v.statut_livraison, canEdit,
+      { LIVRE: "Livré", EN_COMMANDE: "En cours de commande", NON_LIVRE: "Non livré" });
+
+    html += cellInput(v.id, "date_livraison",  v.date_livraison,  canEdit,   "date");
+
+    html += cellSelect(v.id, "pv_signe", v.pv_signe || "NON_SIGNE", canEdit,
+      { NON_SIGNE: "Non signé", SIGNE: "Signé" });
+    html += cellInput(v.id, "date_pv_signe", v.date_pv_signe, canEdit, "date");
+
+    if (!restricted) {
+      html += cellInput(v.id, "valeur_vente_ht", v.valeur_vente_ht, canEdit,   "number");
+
+      html += cellSelect(v.id, "statut_paiement", v.statut_paiement, canEdit,
+        { INCONNU: "Inconnu / à vérifier", PAYE: "Payé", NON_PAYE: "Non payé" });
+      html += cellSelect(v.id, "statut_facturation", v.statut_facturation, canEdit,
+        { NON_FACTURE: "Non facturé", FACTURE: "Facturé" });
+      html += cellInput(v.id, "numero_facture", v.numero_facture, canEdit, "text");
+      html += cellInput(v.id, "date_facture",   v.date_facture,   canEdit, "date");
+
+      html += `<td class="num" data-col="commission">${fmtEUR(commission)}</td>`;
+      html += `<td data-col="eligibilite">${badge(eligibilite, LABELS.eligibilite, BADGE_CLASS)}</td>`;
+      html += `<td><button type="button" class="invoice-btn" data-invoice-id="${esc(v.id)}"
+        ${canInvoice ? "" : "disabled"} title="${invoiceTitle}" aria-label="Imprimer la facture">🖨</button></td>`;
+    }
+
+    html += cellInput(v.id, "remarques", v.remarques, true, "text");
+    html += cellInput(v.id, "source",    v.source,    canEdit, "text");
+
+    html += `<td class="cell-maj">${v.maj_le ? esc(v.maj_le) + "<br><span class='maj-par'>" + esc(v.maj_par) + "</span>" : ""}</td>`;
+    html += `</tr>`;
+  });
+
+  html += "</tbody>";
+  document.getElementById(tableId).innerHTML = html;
+  attachCellHandlers(tableId, concession);
+
+  document.getElementById(tableId).querySelectorAll("[data-invoice-id]").forEach(btn => {
+    btn.addEventListener("click", () => printInvoice(btn.dataset.invoiceId, concession));
+  });
+}
+
+function cellInput(id, field, value, editable, type) {
+  if (!editable) {
+    let display = value || "";
+    if (type === "date")   display = fmtDateISOtoFR(value);
+    if (type === "number") display = fmtEUR(value);
+    return `<td>${display}</td>`;
+  }
+  const val = value === null || value === undefined ? "" : value;
+  const ariaLabel = field.replace(/_/g, " ");
+  return `<td class="editable"><input class="cell-input" type="${type}" step="${type === "number" ? "0.01" : ""}" data-id="${esc(id)}" data-field="${field}" value="${esc(String(val))}" aria-label="${ariaLabel}"></td>`;
+}
+
+function cellSelect(id, field, value, editable, options) {
+  if (!editable) {
+    return `<td>${badge(value, LABELS[field] || {}, BADGE_CLASS)}</td>`;
+  }
+  const ariaLabel = field.replace(/_/g, " ");
+  let opts = Object.entries(options).map(([k, label]) =>
+    `<option value="${k}" ${k === value ? "selected" : ""}>${label}</option>`).join("");
+  return `<td class="editable"><select class="cell-input" data-id="${esc(id)}" data-field="${field}" aria-label="${ariaLabel}">${opts}</select></td>`;
+}
+
+function attachCellHandlers(tableId, concession) {
+  const table = document.getElementById(tableId);
+  table.querySelectorAll(".cell-input").forEach(input => {
+    input.addEventListener("change", () => {
+      const id    = input.dataset.id;
+      const field = input.dataset.field;
+      const v     = state.data.vehicules.find(x => x.id === id);
+      if (!v) return;
+
+      let val = input.value;
+      if (field === "valeur_vente_ht") val = val === "" ? null : parseFloat(val);
+      v[field]   = val;
+      v.maj_par  = state.user.name;
+      v.maj_le   = new Date().toISOString().slice(0, 16).replace("T", " ");
+      state.dirty = true;
+      updateSaveBtn();
+
+      renderKPI(concession === "BMW_POZZI" ? "kpi-bmw" : "kpi-ford", getVehicules(concession));
+
+      const row = table.querySelector(`tr[data-id="${id}"]`);
+      if (row) {
+        const commission  = computeCommission(v);
+        const eligibilite = computeEligibilite(v);
+        const commissionCell  = row.querySelector('[data-col="commission"]');
+        const eligibiliteCell = row.querySelector('[data-col="eligibilite"]');
+        if (commissionCell)  commissionCell.textContent  = fmtEUR(commission);
+        if (eligibiliteCell) eligibiliteCell.innerHTML    = badge(eligibilite, LABELS.eligibilite, BADGE_CLASS);
+      }
+      setSyncStatus("Modifications non enregistrées", "dirty");
+    });
+  });
+}
+
+function renderSuivi() {
+  const vehicules = state.data.vehicules;
+  renderKPI("kpi-suivi", vehicules);
+
+  const headers = ["Marque", "Concession", "Client", "Conducteur", "Modèle / Version", "Immat.", "Statut livraison", "Date livraison (effective ou estimée)", "Source"];
+  let html = "<thead><tr>" + headers.map(h => `<th scope="col">${h}</th>`).join("") + "</tr></thead><tbody>";
+
+  vehicules.forEach(v => {
+    html += `<tr>
+      <td>${esc(v.marque)}</td>
+      <td>${esc(v.raison_sociale)}</td>
+      <td title="${esc(v.client)}">${esc(v.client)}</td>
+      <td>${esc(v.conducteur)}</td>
+      <td title="${esc(v.modele)}">${esc(v.modele)}</td>
+      <td>${esc(v.immat)}</td>
+      <td>${badge(v.statut_livraison, LABELS.statut_livraison, BADGE_CLASS)}</td>
+      <td>${fmtDateISOtoFR(v.date_livraison)}</td>
+      <td>${esc(v.source)}</td>
+    </tr>`;
+  });
+
+  html += "</tbody>";
+  document.getElementById("table-suivi").innerHTML = html;
+}
+
+/* =====================================================================
+   COLLABORATEURS (lecture seule, en miroir de github.com)
+   ===================================================================== */
+function setupUsersAdmin() {
+  const dialog   = document.getElementById("users-dialog");
+  const openBtn  = document.getElementById("users-btn");
+  const closeBtn = document.getElementById("users-dialog-close");
+  if (!dialog || !openBtn) return;
+
+  openBtn.addEventListener("click", async () => {
+    dialog.showModal();
+    await renderUsersTable();
+  });
+  closeBtn.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+}
+
+const SCOPE_LABEL = { FULL: "Complet", LIVRAISON_ONLY: "Livraison uniquement" };
+const PERMISSION_LABEL = { admin: "Admin", write: "Write", read: "Read", none: "Aucun accès" };
+
+async function renderUsersTable() {
+  const table = document.getElementById("users-table");
+  table.innerHTML = `<tbody><tr><td>Chargement…</td></tr></tbody>`;
+  let payload;
+  try {
+    payload = await apiGetCollaborators();
+  } catch (e) {
+    table.innerHTML = `<tbody><tr><td>${esc(e.message || "Impossible de charger la liste.")}</td></tr></tbody>`;
+    return;
+  }
+
+  const rows = payload.collaborators.map(c => `
+    <tr>
+      <td><img src="${esc(c.avatarUrl)}" alt="" width="24" height="24" style="border-radius:50%;vertical-align:middle;"></td>
+      <td>${esc(c.login)}</td>
+      <td>${PERMISSION_LABEL[c.permission] || c.permission}</td>
+      <td>${c.scope ? SCOPE_LABEL[c.scope] : "—"}</td>
+      <td>${c.isOwner ? "✔" : "—"}</td>
+    </tr>`).join("");
+
+  table.innerHTML = `
+    <thead><tr><th scope="col"></th><th scope="col">Compte GitHub</th><th scope="col">Permission GitHub</th><th scope="col">Visibilité dans l'app</th><th scope="col">Admin</th></tr></thead>
+    <tbody>${rows}</tbody>`;
+
+  const link = document.getElementById("manage-on-github-link");
+  if (link) link.href = `https://github.com/${payload.repoOwner}/${payload.repoName}/settings/access`;
+}
+
+/* =====================================================================
+   PREVENTION FERMETURE AVEC MODIFICATIONS NON SAUVEGARDEES
+   ===================================================================== */
+window.addEventListener("beforeunload", (e) => {
+  if (state.dirty) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
+
+/* =====================================================================
+   INIT
+   ===================================================================== */
+(function init() {
+  handleGithubCallback().then(handled => {
+    if (handled) return; // déjà traité (succès ou erreur affichée)
+    if (tryRestoreSession()) bootApp();
+  });
+})();
+
+/* =====================================================================
+   ZONE DESIGN UNIQUEMENT — AUCUNE LOGIQUE MÉTIER
+   Effet "ripple" purement décoratif au clic sur les boutons. N'écoute que
+   l'événement click pour ajouter un <span> visuel éphémère ; ne lit ni
+   n'écrit aucune donnée de state, ne déclenche aucun calcul, n'intercepte
+   aucune action existante (les listeners métier déjà attachés continuent
+   de s'exécuter normalement — addEventListener est additif).
+   ===================================================================== */
+(function setupRippleFX() {
+  const style = document.createElement('style');
+  style.textContent = `
+    .tb-btn, .ntab, .auth-btn, .account-pill, .invoice-btn { position: relative; overflow: hidden; }
+    .fx-ripple {
+      position: absolute; border-radius: 50%; pointer-events: none;
+      background: currentColor; opacity: .28;
+      transform: scale(0); animation: fxRippleAnim .55s var(--ease-out, ease);
+    }
+    @keyframes fxRippleAnim { to { transform: scale(2.6); opacity: 0; } }
+  `;
+  document.head.appendChild(style);
+
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('.tb-btn, .ntab, .auth-btn, .account-pill, .invoice-btn');
+    if (!el || el.disabled) return;
+    const rect = el.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const span = document.createElement('span');
+    span.className = 'fx-ripple';
+    span.style.width = span.style.height = size + 'px';
+    span.style.left = (e.clientX - rect.left - size / 2) + 'px';
+    span.style.top  = (e.clientY - rect.top  - size / 2) + 'px';
+    el.appendChild(span);
+    span.addEventListener('animationend', () => span.remove());
+  }, { passive: true });
+})();
+
+
+</script>
+</body>
+</html>
