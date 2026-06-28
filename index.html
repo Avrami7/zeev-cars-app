@@ -1716,6 +1716,62 @@ function computeCommission(v) {
   }
   return 0;
 }
+
+/* =====================================================================
+   PÉNALITÉS DE RETARD DE PAIEMENT — fonctionnalité demandée explicitement,
+   strictement basée sur l'Art.8 de la convention BMW Ch.Pozzi :
+     "Les commissions sont payables dans un délai de quinze (15) jours à
+      compter de la réception de la facture. Tout retard de paiement
+      entraînera l'application des intérêts de retard prévus par le Code
+      de commerce ainsi que l'indemnité forfaitaire de 40 € pour frais de
+      recouvrement."
+   Le Code de commerce (Art. L441-10) fixe, à défaut de taux contractuel
+   plus précis, un PLANCHER de 3 fois le taux d'intérêt légal "professionnels"
+   en vigueur. Ce taux est publié 2 fois par an (1er janvier / 1er juillet)
+   par arrêté — IL NE PEUT PAS ÊTRE AUTOMATISÉ, il faut le mettre à jour ici
+   à chaque semestre (source : economie.gouv.fr/tout-savoir-sur-le-taux-dinteret-legal).
+   N'affecte JAMAIS computeCommission()/computeEligibilite() — c'est un
+   calcul strictement additionnel, jamais soustrait/mélangé à la commission.
+   ===================================================================== */
+const LATE_PENALTY_CONFIG = {
+  // Taux d'intérêt légal "professionnels" — 1er semestre 2026 (01/01 → 30/06/2026).
+  // À VÉRIFIER ET METTRE À JOUR avant le 01/07/2026 puis chaque 01/01 et 01/07.
+  legalRateProPct: 2.62,
+  // Multiplicateur plancher fixé par l'Art. L441-10 du Code de commerce.
+  penaltyMultiplier: 3,
+  // Indemnité forfaitaire de recouvrement (Art.8 de la convention).
+  recoveryIndemnityEUR: 40,
+  // Délai de paiement contractuel, en jours, à compter de la date de facture (Art.8).
+  paymentTermDays: 15,
+};
+
+/* Retourne { joursRetard, interet, indemnite, total } ou null si aucune
+   facture émise, ou si le retard n'est pas encore constitué. Calcul
+   uniquement informatif tant que le statut paiement n'est pas "Payé" —
+   dès que c'est payé, le retard cesse de courir (on utilise alors la date
+   du jour comme borne, en l'absence d'un horodatage de paiement effectif). */
+function computeLatePenalty(v) {
+  if (v.statut_facturation !== "FACTURE" || !v.date_facture) return null;
+  if (v.statut_paiement === "PAYE") return null; // déjà réglé : pas de pénalité à facturer
+
+  const dateFacture = new Date(v.date_facture + "T00:00:00");
+  if (isNaN(dateFacture)) return null;
+
+  const echeance = new Date(dateFacture);
+  echeance.setDate(echeance.getDate() + LATE_PENALTY_CONFIG.paymentTermDays);
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const joursRetard = Math.floor((today - echeance) / 86400000);
+  if (joursRetard <= 0) return null; // pas encore en retard
+
+  const montantDu = computeCommission(v) || (Number(v.valeur_vente_ht) || 0) * tauxConcession(v.concession);
+  const tauxPenalite = LATE_PENALTY_CONFIG.penaltyMultiplier * LATE_PENALTY_CONFIG.legalRateProPct;
+  const interet = +(montantDu * joursRetard * tauxPenalite / (365 * 100)).toFixed(2);
+  const indemnite = LATE_PENALTY_CONFIG.recoveryIndemnityEUR;
+
+  return { joursRetard, interet, indemnite, total: +(interet + indemnite).toFixed(2), echeanceISO: echeance.toISOString().slice(0, 10) };
+}
+
 /* Un véhicule n'est Facturable qu'après remise EFFECTIVE au conducteur,
    attestée par un PV de mise à disposition signé de sa part (conformité
    du véhicule à sa commande) — le statut "Livré" seul ne suffit pas :
@@ -2617,10 +2673,11 @@ function renderConcessionPanel(concession, tableId, kpiId) {
        "Valeur de vente du véhicule HT (€)",
        "Statut paiement", "Statut facturation", "N° facture", "Date facture",
        simulation ? "Commission HT (simulation)" : "Commission HT",
+       ...(simulation ? [] : ["Pénalité de retard (Art.8)"]),
        "Éligibilité", "Facture", "Remarques", "Source", "Dernière MAJ"];
 
   const COMPUTED_HEADER_HINT = "Colonne calculée automatiquement — non modifiable directement. Voir l'infobulle de chaque ligne pour le détail.";
-  const isComputedHeader = h => h === "Éligibilité" || h.startsWith("Commission HT");
+  const isComputedHeader = h => h === "Éligibilité" || h.startsWith("Commission HT") || h.startsWith("Pénalité de retard");
   let html = "<thead><tr>" + headers.map(h =>
     `<th scope="col"${isComputedHeader(h) ? ` title="${esc(COMPUTED_HEADER_HINT)}"` : ""}>${h}${isComputedHeader(h) ? ' <span aria-hidden="true" style="opacity:.6;">ⓘ</span>' : ""}</th>`
   ).join("") + "</tr></thead><tbody>";
@@ -2666,6 +2723,15 @@ function renderConcessionPanel(concession, tableId, kpiId) {
       html += cellInput(v.id, "date_facture",   v.date_facture,   canEdit, "date");
 
       html += `<td class="num" data-col="commission" title="Calculé automatiquement : Valeur de vente HT × taux contractuel, uniquement si le véhicule est Facturable (voir Éligibilité).">${fmtEUR(commission)}</td>`;
+      if (!simulation) {
+        const penalty = computeLatePenalty(v);
+        const penaltyHint = penalty
+          ? `Échéance dépassée le ${esc(fmtDateISOtoFR(penalty.echeanceISO))} (Art.8 : 15 jours à compter de la date de facture). ` +
+            `${penalty.joursRetard} jour(s) de retard × taux plancher légal (3× taux d'intérêt légal professionnels en vigueur, Art. L441-10 Code de commerce) ` +
+            `= ${fmtEUR(penalty.interet)} d'intérêts + ${fmtEUR(penalty.indemnite)} d'indemnité forfaitaire de recouvrement (Art.8).`
+          : "Aucun retard constaté : soit la facture n'est pas encore émise/en retard, soit déjà payée.";
+        html += `<td class="num" data-col="penalite" title="${penaltyHint}">${penalty ? fmtEUR(penalty.total) : "—"}</td>`;
+      }
       html += `<td data-col="eligibilite" title="${esc(eligibiliteHint(v))}">${badge(eligibilite, LABELS.eligibilite, BADGE_CLASS)}</td>`;
       html += `<td><button type="button" class="invoice-btn" data-invoice-id="${esc(v.id)}"
         ${canInvoice ? "" : "disabled"} title="${invoiceTitle}" aria-label="Imprimer la facture">🖨</button></td>`;
@@ -2734,10 +2800,18 @@ function attachCellHandlers(tableId, concession) {
         const eligibilite = computeEligibilite(v);
         const commissionCell  = row.querySelector('[data-col="commission"]');
         const eligibiliteCell = row.querySelector('[data-col="eligibilite"]');
+        const penaliteCell    = row.querySelector('[data-col="penalite"]');
         if (commissionCell)  commissionCell.textContent  = fmtEUR(commission);
         if (eligibiliteCell) {
           eligibiliteCell.innerHTML = badge(eligibilite, LABELS.eligibilite, BADGE_CLASS);
           eligibiliteCell.title     = eligibiliteHint(v);
+        }
+        if (penaliteCell) {
+          const penalty = computeLatePenalty(v);
+          penaliteCell.textContent = penalty ? fmtEUR(penalty.total) : "—";
+          penaliteCell.title = penalty
+            ? `Échéance dépassée le ${fmtDateISOtoFR(penalty.echeanceISO)} (Art.8). ${penalty.joursRetard} jour(s) de retard.`
+            : "Aucun retard constaté.";
         }
       }
       setSyncStatus("Modifications non enregistrées", "dirty");
@@ -2969,6 +3043,7 @@ const CSV_IMPORT_WRITABLE_FIELDS = new Set([
 ]);
 const CSV_IMPORT_KNOWN_READONLY_FIELDS = new Set([
   "concession", "raison_sociale", "taux_commission_pct", "montant_commission_ht",
+  "penalite_retard_ht",
 ]);
 
 function parseCsvSemicolon(text) {
