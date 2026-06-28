@@ -3039,12 +3039,57 @@ const CSV_IMPORT_WRITABLE_FIELDS = new Set([
   "client", "conducteur", "modele", "immat", "vin",
   "statut_livraison", "date_livraison", "pv_signe",
   "valeur_vente_ht", "statut_paiement", "statut_facturation",
-  "numero_facture", "date_facture",
+  "numero_facture", "date_facture", "source", "remarques", "marque",
 ]);
 const CSV_IMPORT_KNOWN_READONLY_FIELDS = new Set([
   "concession", "raison_sociale", "taux_commission_pct", "montant_commission_ht",
-  "penalite_retard_ht",
+  "penalite_retard_ht", "n°", "siren", "siret", "adresse fournisseur",
+  "concession (raison sociale)", "statut éligibilité facturation",
+  "pénalité de retard estimée (art.8)", "date pv signé",
 ]);
+/* Correspondance libellés matrice Excel (ou ancien export) -> nom de champ
+   interne. Permet d'importer directement un fichier qui utilise les
+   en-têtes humains de la matrice type ("Client", "Immat.", ...) sans avoir
+   à les renommer à la main en "client", "immat", etc. Insensible à la casse
+   (comparaison faite sur la version normalisée en minuscules). */
+const CSV_HEADER_ALIASES = {
+  "n°": "__rownum__", // numéro de ligne matrice — purement informatif, ignoré
+  "client": "client",
+  "client (entité siemens)": "client",
+  "conducteur": "conducteur",
+  "marque": "marque",
+  "modèle / version": "modele",
+  "modele": "modele",
+  "immat.": "immat",
+  "immat": "immat",
+  "vin / n° de série": "vin",
+  "vin": "vin",
+  "statut livraison": "statut_livraison",
+  "date de livraison": "date_livraison",
+  "date livraison": "date_livraison",
+  "date de livraison / mise en circulation": "date_livraison",
+  "montant ht base commission": "valeur_vente_ht",
+  "montant ht base commission (saisie manuelle)": "valeur_vente_ht",
+  "valeur_vente_ht": "valeur_vente_ht",
+  "statut paiement client": "statut_paiement",
+  "statut paiement client (saisie)": "statut_paiement",
+  "statut_paiement": "statut_paiement",
+  "commission ht": "__readonly__", // colonne calculée, jamais réimportée
+  "statut éligibilité facturation": "__readonly__",
+  "source": "source",
+  "remarques": "remarques",
+  "pv de mise à disposition signé": "pv_signe",
+  "date pv signé": "date_pv_signe",
+  "statut facturation": "statut_facturation",
+  "n° facture": "numero_facture",
+  "date facture": "date_facture",
+  "pénalité de retard estimée (art.8)": "__readonly__",
+};
+function normalizeCsvHeader(h) {
+  const key = h.trim().toLowerCase();
+  if (CSV_HEADER_ALIASES[key]) return CSV_HEADER_ALIASES[key];
+  return h.trim(); // déjà un nom de champ interne (ex. "id", "client") -> inchangé
+}
 
 function parseCsvSemicolon(text) {
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM ajouté par l'export
@@ -3082,14 +3127,15 @@ function setupImport() {
       const rows = parseCsvSemicolon(text);
       if (rows.length < 2) throw new Error("Fichier vide ou illisible.");
 
-      const headerRow = rows[0].map(h => h.trim());
+      const headerRow = rows[0].map(h => normalizeCsvHeader(h.trim()));
       const idIdx = headerRow.indexOf("id");
       if (idIdx === -1) {
-        throw new Error('Colonne "id" introuvable. Utilisez un fichier issu de "Export CSV", en conservant la ligne d\'en-têtes.');
+        throw new Error('Colonne "id" introuvable. Utilisez un fichier issu de "Export CSV", en conservant la ligne d\'en-têtes (ou la colonne "id" de votre matrice).');
       }
 
       const ignoredCols = headerRow.filter((h, idx) =>
-        idx !== idIdx && !CSV_IMPORT_WRITABLE_FIELDS.has(h) && !CSV_IMPORT_KNOWN_READONLY_FIELDS.has(h));
+        idx !== idIdx && h !== "__rownum__" && h !== "__readonly__" &&
+        !CSV_IMPORT_WRITABLE_FIELDS.has(h) && !CSV_IMPORT_KNOWN_READONLY_FIELDS.has(h));
 
       let updated = 0, unknownIds = 0;
       for (let r = 1; r < rows.length; r++) {
