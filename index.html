@@ -9,9 +9,33 @@
 <!-- Dépendance externe optionnelle : Google Fonts. En cas de blocage proxy/réseau
      restrictif, la pile de secours (sans-serif / monospace, voir style.css --font/--mono)
      s'applique automatiquement sans erreur visible — voir détection app.js (Font Loading API). -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Polices hébergées localement (fonts/) — plus aucune dépendance à
+   Google Fonts : fonctionne même sur un réseau qui bloque fonts.googleapis.com.
+   Syne est une police variable (un seul fichier couvre les graisses 400 à 800). */
+@font-face {
+  font-family: 'Syne';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('fonts/Syne-Variable.woff2') format('woff2-variations'),
+       url('fonts/Syne-Variable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/DMMono-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('fonts/DMMono-Medium.woff2') format('woff2');
+}
+</style>
 <style>
 /* =====================================================================
    VARIABLES THÈME SOMBRE (défaut)
@@ -155,7 +179,6 @@ body::before {
 .auth-box    { width: 100%; max-width: 380px; padding: 0 20px; }
 .auth-logo   {
   text-align: center; margin-bottom: 28px;
-  animation: authRise .6s var(--ease-out) backwards; animation-delay: .05s;
 }
 .auth-logo-title { font-size: 24px; font-weight: 700; color: var(--tx); letter-spacing: -.02em; }
 .auth-logo-title span { color: var(--gr); }
@@ -166,7 +189,6 @@ body::before {
   border-radius: 14px;
   padding: 28px 24px;
   box-shadow: var(--sh-2);
-  animation: authRise .6s var(--ease-out) backwards; animation-delay: .16s;
 }
 @keyframes authRise {
   from { opacity: 0; transform: translateY(14px) scale(.985); }
@@ -339,7 +361,6 @@ body::before {
   width: 22px; height: 22px; border-radius: 50%;
   background: #1a1a2e; border: 2px solid #2a2a4a;
   box-shadow: 0 0 0px #ff1801;
-  transition: background .08s, box-shadow .08s, border-color .08s;
 }
 .f1-light.on {
   background: #ff1801; border-color: #ff4433;
@@ -348,12 +369,10 @@ body::before {
 .f1-light.off {
   background: #1a1a2e; border-color: #2a2a4a;
   box-shadow: 0 0 0px #ff1801;
-  transition: background .25s, box-shadow .35s, border-color .25s;
 }
 .f1-light.green {
   background: #00d04b; border-color: #00ff5a;
   box-shadow: 0 0 14px 5px rgba(0,208,75,.75), 0 0 32px 10px rgba(0,208,75,.3);
-  transition: background .12s, box-shadow .12s, border-color .12s;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -847,7 +866,7 @@ input.cell-input[data-field="date_facture"]     { max-width: 130px; margin: 0 au
 select.cell-input[data-field="statut_livraison"],
 select.cell-input[data-field="pv_signe"],
 select.cell-input[data-field="statut_paiement"],
-select.cell-input[data-field="statut_facturation"] { max-width: 150px; margin: 0 auto; }
+select.cell-input[data-field="statut_facturation"] { max-width: 188px; margin: 0 auto; }
 
 table.data-table tbody tr:hover td {
   background: rgba(255,255,255,.03);
@@ -1007,6 +1026,10 @@ td.num { text-align: right; font-family: var(--mono); }
   }
   body.printing-table .badge { border: 1px solid #999 !important; background: #fff !important; color: #000 !important; }
   body.printing-table .invoice-btn { display: none !important; }
+  /* VIN redondant à l'impression dès que le véhicule a une immatriculation —
+     reste disponible à l'écran pour la saisie, simplement absent du papier. */
+  body.printing-table th[data-col="vin"],
+  body.printing-table td:has(input[data-field="vin"]) { display: none !important; }
 
   /* ── Mode 2 : impression d'une facture individuelle ──────────────── */
   body.printing-invoice #app-screen, body.printing-invoice #auth-overlay,
@@ -1016,11 +1039,16 @@ td.num { text-align: right; font-family: var(--mono); }
   body.printing-invoice #invoice-print-area { display: block !important; }
 
   .invoice-doc { font-family: var(--font); color: #000; background: #fff; padding: 0; max-width: 180mm; margin: 0 auto; }
-  .invoice-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 18px; }
-  .invoice-brand { font-size: 20px; font-weight: 800; }
-  .invoice-brand span { color: #666; }
-  .invoice-meta { text-align: right; font-size: 11px; line-height: 1.7; }
-  .invoice-parties { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 22px; font-size: 12px; line-height: 1.7; }
+  .invoice-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+  .invoice-head h1 { font-size: 30px; font-weight: 800; margin: 0 0 16px; letter-spacing: -.01em; }
+  .invoice-meta-table { font-size: 11px; line-height: 1.9; }
+  .invoice-meta-table td:first-child { color: #555; padding-right: 18px; }
+  .invoice-meta-table td:last-child { font-weight: 600; }
+  .invoice-brand { font-size: 19px; font-weight: 800; text-align: right; }
+  .invoice-brand span { color: #2bbf6a; }
+  .invoice-parties { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 26px; font-size: 11.5px; line-height: 1.7; }
+  .invoice-parties > div { flex: 1; }
+  .invoice-parties strong { display: block; font-size: 13px; margin-bottom: 4px; }
   .invoice-vehicule, .invoice-calc { margin-bottom: 22px; }
   .invoice-vehicule strong, .invoice-calc strong { display: block; font-size: 12px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .03em; }
   .invoice-table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -1031,16 +1059,25 @@ td.num { text-align: right; font-family: var(--mono); }
   .invoice-footer { margin-top: 34px; font-size: 9px; color: #888; border-top: 1px solid #ccc; padding-top: 8px; }
 
   /* ── Facture consolidée (plusieurs véhicules, une seule facture) ────── */
-  .invoice-items { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 18px; }
+  .invoice-items { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 0; }
   .invoice-items thead th {
-    text-align: left; font-weight: 700; padding: 7px 8px; border: 1px solid #000;
+    text-align: left; font-weight: 700; padding: 8px 9px; border: 1px solid #000;
     background: #111; color: #fff; font-size: 9px; text-transform: uppercase; letter-spacing: .03em;
   }
-  .invoice-items tbody td { padding: 6px 8px; border: 1px solid #999; }
+  .invoice-items tbody td { padding: 7px 9px; border: 1px solid #ddd; }
   .invoice-items td.num, .invoice-items th.num { text-align: right; }
-  .invoice-items tfoot td { font-weight: 800; font-size: 13px; background: #eef1fb; border: 1px solid #000; padding: 8px 9px; }
-  .invoice-payment { margin-top: 26px; font-size: 11px; line-height: 1.7; }
-  .invoice-payment strong { display: block; margin-bottom: 4px; text-transform: uppercase; font-size: 10px; letter-spacing: .03em; }
+  .invoice-totals-table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 0; }
+  .invoice-totals-table td { padding: 7px 9px; border: none; }
+  .invoice-totals-table td:first-child { text-align: right; color: #444; }
+  .invoice-totals-table td:last-child { text-align: right; width: 130px; }
+  .invoice-totals-table tr.ttc td { font-weight: 800; font-size: 13px; background: #eef1fb; border-top: 1px solid #000; }
+  .invoice-payment {
+    margin-top: 30px; padding: 16px 20px; background: #f4f6fa; border-radius: 6px;
+    font-size: 11px; line-height: 1.9;
+  }
+  .invoice-payment-title { font-weight: 700; margin-bottom: 8px; }
+  .invoice-payment-table td:first-child { color: #555; padding-right: 18px; width: 140px; }
+  .invoice-payment-table td:last-child { font-weight: 600; }
 }
 
 </style>
@@ -1371,7 +1408,7 @@ td.num { text-align: right; font-family: var(--mono); }
       <div class="auth-field">
         <label class="auth-lbl" for="av-statut">Statut livraison</label>
         <select class="auth-sel" id="av-statut">
-          <option value="EN_COMMANDE" selected>En cours de commande</option>
+          <option value="EN_COMMANDE" selected>Commandé — en attente de livraison</option>
           <option value="LIVRE">Livré</option>
           <option value="NON_LIVRE">Non livré</option>
         </select>
@@ -1433,9 +1470,11 @@ td.num { text-align: right; font-family: var(--mono); }
 
 <script>
 /* =====================================================================
-   FEUX F1 — ANIMATION OUVERTURE / FERMETURE
+   FEUX F1 — séquence façon circuit (allumage 1→5, extinction simultanée,
+   en boucle) tant que non authentifié. Passage au vert instantané et fixe
+   dès que la connexion est validée — plus de séquence à ce moment-là.
    ===================================================================== */
-(function runF1Lights() {
+(function setupF1Lights() {
   const ids = ['l1','l2','l3','l4','l5'];
   let running = true;
   let timer = null;
@@ -1457,7 +1496,9 @@ td.num { text-align: right; font-family: var(--mono); }
       lightOn(step); step++;
       timer = setTimeout(sequence, 650);
     } else {
-      timer = setTimeout(() => { allOff(); step = 0; timer = setTimeout(sequence, 2200); }, 900);
+      // Les 5 feux restent allumés un instant, puis extinction brutale et
+      // simultanée (comme au départ d'un Grand Prix), avant de recommencer.
+      timer = setTimeout(() => { allOff(); step = 0; timer = setTimeout(sequence, 1400); }, 900);
     }
   }
 
@@ -1465,28 +1506,17 @@ td.num { text-align: right; font-family: var(--mono); }
     running = false; clearTimeout(timer);
     ids.forEach(id => {
       const el = document.getElementById(id);
-      if (el) { el.classList.remove('on','off'); }
+      if (el) { el.classList.remove('on','off'); el.classList.add('green'); }
     });
-    let i = 0;
-    function greenOn() {
-      if (i >= ids.length) return;
-      const el = document.getElementById(ids[i]);
-      if (el) el.classList.add('green');
-      i++; setTimeout(greenOn, 120);
-    }
-    greenOn();
   };
 
   window.f1GoRed = function(cb) {
     running = false; clearTimeout(timer);
-    ids.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { el.classList.remove('off','green'); el.classList.add('on'); }
-    });
-    setTimeout(() => { allOff(); if (cb) setTimeout(cb, 350); }, 600);
+    allOff();
+    if (cb) cb();
   };
 
-  timer = setTimeout(sequence, 400);
+  timer = setTimeout(sequence, 300);
 })();
 
 /* =====================================================================
@@ -1654,11 +1684,10 @@ function applyContractEndDateAlert(bandeauId, contract, label) {
 }
 
 /* =====================================================================
-   POLICES EXTERNES — dégradation contrôlée
-   Si Google Fonts est bloqué (proxy d'entreprise / environnement isolé),
-   la pile de secours CSS (sans-serif / monospace) s'applique déjà
-   nativement ; on le signale simplement en console pour le diagnostic,
-   sans bloquer le rendu ni afficher d'erreur à l'utilisateur final.
+   POLICES — hébergées localement (fonts/Syne-Variable.woff2, fonts/DMMono-*.woff2)
+   depuis [date du correctif]. Plus de dépendance à Google Fonts : ce garde-fou
+   reste néanmoins en place en cas de fichier de police manquant/corrompu sur
+   le dépôt, pour dégrader proprement sans bloquer le rendu.
    ===================================================================== */
 if (window.document && document.fonts && document.fonts.ready) {
   document.fonts.ready
@@ -1666,7 +1695,7 @@ if (window.document && document.fonts && document.fonts.ready) {
       const syneLoaded = document.fonts.check("16px Syne");
       if (!syneLoaded) {
         document.documentElement.classList.add("fonts-fallback");
-        console.warn("[ZEEV] Police Syne non chargée — pile de secours système active.");
+        console.warn("[ZEEV] Police Syne non chargée (fichier local manquant ou corrompu) — pile de secours système active.");
       }
     })
     .catch(() => {});
@@ -1802,7 +1831,7 @@ function computeEligibilite(v) {
 }
 
 const LABELS = {
-  statut_livraison: { LIVRE: "Livré", EN_COMMANDE: "En cours de commande", NON_LIVRE: "Non livré" },
+  statut_livraison: { LIVRE: "Livré", EN_COMMANDE: "Commandé — en attente de livraison", NON_LIVRE: "Non livré" },
   statut_paiement: { INCONNU: "Inconnu / à vérifier", PAYE: "Payé", NON_PAYE: "Non payé" },
   statut_facturation: { NON_FACTURE: "Non facturé", FACTURE: "Facturé" },
   pv_signe: { NON_SIGNE: "Non signé", SIGNE: "Signé" },
@@ -1941,7 +1970,6 @@ async function handleGithubCallback() {
     const { token, user } = await apiLoginGithub(code, cleanUrl);
     persistSession(token, user);
     if (window.f1GoGreen) f1GoGreen();
-    await new Promise(r => setTimeout(r, 700));
     await bootApp();
   } catch (e) {
     showLoginError(e.message || "Connexion impossible.");
@@ -1996,7 +2024,7 @@ function performLogout(silent) {
     localStorage.removeItem("zeev_session");
     sessionStorage.removeItem("zeev_session");
   } catch (e) {}
-  playClosingAnimation();
+  window.location.reload(); // transition de fermeture annulée à la demande
 }
 
 function playClosingAnimation() {
@@ -2443,26 +2471,29 @@ async function renderConsolidatedInvoice({ numero, emission, echeance, vehicules
   document.getElementById("invoice-print-area").innerHTML = `
     <div class="invoice-doc">
       <header class="invoice-head">
-        <div class="invoice-brand">ZEEV<span>CARS</span></div>
-        <div class="invoice-meta">
-          <div>Numéro de facture : ${esc(numero)}</div>
-          <div>Date d'émission : ${esc(fmtDateISOtoFR(emission))}</div>
-          <div>Date d'échéance : ${esc(fmtDateISOtoFR(echeance))}</div>
+        <div>
+          <h1>Facture</h1>
+          <table class="invoice-meta-table">
+            <tr><td>Numéro de facture</td><td>${esc(numero)}</td></tr>
+            <tr><td>Date d'émission</td><td>${esc(fmtDateISOtoFR(emission))}</td></tr>
+            <tr><td>Date d'échéance</td><td>${esc(fmtDateISOtoFR(echeance))}</td></tr>
+          </table>
         </div>
+        <div class="invoice-brand">ZEEV<span>CARS</span></div>
       </header>
 
       <section class="invoice-parties">
         <div>
-          <strong>Émetteur</strong><br>
-          ZEEV CARS — SASU au capital de 50 €<br>
-          RCS Paris n°105 926 158 — SIRET 105 926 158 00012<br>
-          47 rue Vivienne, 75002 Paris
+          <strong>ZEEV CARS</strong>
+          47 rue Vivienne<br>75002 Paris, FR<br>
+          SASU au capital de 50 € — RCS Paris n°105 926 158<br>
+          SIRET 105 926 158 00012
         </div>
         <div>
-          <strong>Destinataire</strong><br>
-          CH. POZZI — SAS au capital de 3 000 000 €<br>
-          RCS Paris n°525 580 288 — SIRET 525 580 288 00146<br>
-          12-14 Place du Général Koenig, 75017 Paris
+          <strong>CH. POZZI</strong>
+          12-14 Place du Général Koenig<br>75017 Paris, FR<br>
+          SAS au capital de 3 000 000 € — RCS Paris n°525 580 288<br>
+          SIRET 525 580 288 00146
         </div>
       </section>
 
@@ -2474,9 +2505,11 @@ async function renderConsolidatedInvoice({ numero, emission, echeance, vehicules
           </tr>
         </thead>
         <tbody>${rows}</tbody>
-        <tfoot>
-          <tr><td colspan="5">Total HT</td><td class="num">${fmtEUR(totalHT)}</td></tr>
-        </tfoot>
+      </table>
+      <table class="invoice-totals-table">
+        <tr><td>Total HT</td><td>${fmtEUR(totalHT)}</td></tr>
+        <tr><td>Montant total de la TVA</td><td>0,00 €</td></tr>
+        <tr class="ttc"><td>Total TTC</td><td>${fmtEUR(totalHT)}</td></tr>
       </table>
 
       <p class="invoice-note">
@@ -2490,10 +2523,12 @@ async function renderConsolidatedInvoice({ numero, emission, echeance, vehicules
       </p>
 
       <div class="invoice-payment">
-        <strong>Détails du paiement</strong>
-        Nom du bénéficiaire : ${esc(payment.beneficiaire)}<br>
-        BIC : ${esc(payment.bic)}<br>
-        IBAN : ${esc(payment.iban)}
+        <div class="invoice-payment-title">Détails du paiement</div>
+        <table class="invoice-payment-table">
+          <tr><td>Nom du bénéficiaire</td><td>${esc(payment.beneficiaire)}</td></tr>
+          <tr><td>BIC</td><td>${esc(payment.bic)}</td></tr>
+          <tr><td>IBAN</td><td>${esc(payment.iban)}</td></tr>
+        </table>
       </div>
 
       <footer class="invoice-footer">
@@ -2679,7 +2714,7 @@ function renderConcessionPanel(concession, tableId, kpiId) {
   const COMPUTED_HEADER_HINT = "Colonne calculée automatiquement — non modifiable directement. Voir l'infobulle de chaque ligne pour le détail.";
   const isComputedHeader = h => h === "Éligibilité" || h.startsWith("Commission HT") || h.startsWith("Pénalité de retard");
   let html = "<thead><tr>" + headers.map(h =>
-    `<th scope="col"${isComputedHeader(h) ? ` title="${esc(COMPUTED_HEADER_HINT)}"` : ""}>${h}${isComputedHeader(h) ? ' <span aria-hidden="true" style="opacity:.6;">ⓘ</span>' : ""}</th>`
+    `<th scope="col"${h === "VIN" ? ' data-col="vin"' : ""}${isComputedHeader(h) ? ` title="${esc(COMPUTED_HEADER_HINT)}"` : ""}>${h}${isComputedHeader(h) ? ' <span aria-hidden="true" style="opacity:.6;">ⓘ</span>' : ""}</th>`
   ).join("") + "</tr></thead><tbody>";
 
 
@@ -2704,7 +2739,7 @@ function renderConcessionPanel(concession, tableId, kpiId) {
     html += cellInput(v.id, "vin",           v.vin,           canEdit,   "text");
 
     html += cellSelect(v.id, "statut_livraison", v.statut_livraison, canEdit,
-      { LIVRE: "Livré", EN_COMMANDE: "En cours de commande", NON_LIVRE: "Non livré" });
+      LABELS.statut_livraison);
 
     html += cellInput(v.id, "date_livraison",  v.date_livraison,  canEdit,   "date");
 
