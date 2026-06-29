@@ -1146,15 +1146,6 @@ td.num { text-align: right; font-family: var(--mono); }
   .invoice-payment-title { font-weight: 700; margin-bottom: 8px; }
   .invoice-payment-table td:first-child { color: #555; padding-right: 18px; width: 140px; }
   .invoice-payment-table td:last-child { font-weight: 600; }
-
-  /* Supplément immatriculations — détail par véhicule sous la ligne
-     agrégée "Commissions", pour la traçabilité (demande explicite). */
-  .invoice-immat-block { margin: 14px 0; }
-  .invoice-immat-title { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #555; margin-bottom: 5px; }
-  .invoice-immat-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
-  .invoice-immat-table th { text-align: left; font-weight: 600; padding: 4px 8px; border-bottom: 1.5px solid #ccc; color: #555; font-size: 9px; text-transform: uppercase; }
-  .invoice-immat-table td { padding: 4px 8px; border-bottom: 1px solid #eee; }
-  .invoice-immat-table th.num, .invoice-immat-table td.num { text-align: right; }
 }
 
 </style>
@@ -2694,21 +2685,25 @@ async function renderConsolidatedInvoice({ numero, emission, echeance, vehicules
   const info       = CONCESSION_LEGAL_INFO[concession] || { nom: concession, adresseLigne1: "", adresseLigne2: "", identifiants: "" };
   const rate       = contract.rate; // source correcte : transmise par le Worker
 
-  /* Ligne unique agrégée façon matrice de facturation standard
-     (Description / Qté / Prix unitaire / TVA / Total HT) — le "Prix
-     unitaire" est ici une moyenne (Total HT ÷ Qté) puisque la commission
-     réelle varie par véhicule (valeur de vente × taux). Le détail exact
-     par véhicule (immatriculation + montant) est donné juste après le
-     tableau, en supplément, pour la traçabilité — voir "rowsImmat". */
-  const qte = vehicules.length;
+  /* Structure EXACTEMENT identique au modèle de facture fourni : colonnes
+     Description / Qté / Prix unitaire / TVA (%) / Total HT — rien de plus.
+     Une ligne par véhicule (Qté = 1 à chaque fois) pour que l'immatriculation
+     et le montant de chacun restent visibles, au lieu d'une ligne agrégée. */
   let totalHT = 0;
-  const rowsImmat = vehicules.map(v => {
+  const rows = vehicules.map(v => {
     const valeur     = Number(v.valeur_vente_ht) || 0;
     const commission = +(valeur * rate / 100).toFixed(2);
     totalHT += commission;
-    return `<tr><td>${esc(v.immat) || "—"}</td><td>${esc(v.client)}</td><td class="num">${fmtEUR(commission)}</td></tr>`;
+    const description = `Commission apporteur d'affaires — ${esc(v.client)}${v.immat ? " — " + esc(v.immat) : ""}`;
+    return `
+      <tr>
+        <td>${description}</td>
+        <td class="num">1</td>
+        <td class="num">${fmtEUR(commission)}</td>
+        <td class="num">0 %</td>
+        <td class="num">${fmtEUR(commission)}</td>
+      </tr>`;
   }).join("");
-  const prixUnitaireMoyen = qte > 0 ? totalHT / qte : 0;
 
   document.getElementById("invoice-print-area").innerHTML = `
     <div class="invoice-doc">
@@ -2745,24 +2740,8 @@ async function renderConsolidatedInvoice({ numero, emission, echeance, vehicules
             <th class="num">TVA (%)</th><th class="num">Total HT</th>
           </tr>
         </thead>
-        <tbody>
-          <tr>
-            <td>Commissions d'apporteur d'affaires</td>
-            <td class="num">${qte}</td>
-            <td class="num">${fmtEUR(prixUnitaireMoyen)}</td>
-            <td class="num">0 %</td>
-            <td class="num">${fmtEUR(totalHT)}</td>
-          </tr>
-        </tbody>
+        <tbody>${rows}</tbody>
       </table>
-
-      <div class="invoice-immat-block">
-        <div class="invoice-immat-title">Véhicules concernés (immatriculations)</div>
-        <table class="invoice-immat-table">
-          <thead><tr><th>Immatriculation</th><th>Client</th><th class="num">Commission HT</th></tr></thead>
-          <tbody>${rowsImmat}</tbody>
-        </table>
-      </div>
 
       <table class="invoice-totals-table">
         <tr><td>Total HT</td><td>${fmtEUR(totalHT)}</td></tr>
