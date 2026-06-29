@@ -786,6 +786,29 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 .kpi-value { font-size: 18px; font-weight: 700; color: var(--tx); font-family: var(--mono); transition: color .3s var(--ease); }
 .kpi-value.gr { color: var(--gr); }
 .kpi-value.rd { color: var(--rd); }
+.kpi-value.am { color: #c98a13; }
+
+/* Tableau de bord — grille à 4 colonnes (8 cartes sur 2 lignes), plus
+   pratique ici qu'à 6 colonnes fixes pour rester lisible sans surcharger. */
+#kpi-dashboard { grid-template-columns: repeat(4, 1fr); }
+
+/* Graphique mensuel en barres — CSS pur, aucune librairie, volontairement
+   simple à lire en un coup d'œil. */
+.kpi-chart {
+  display: flex; align-items: flex-end; gap: 6px;
+  height: 130px; padding: 10px 6px 0; margin-top: 8px;
+}
+.kpi-chart-col {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-end; height: 100%; gap: 4px;
+}
+.kpi-chart-bar {
+  width: 100%; max-width: 28px; background: var(--ac);
+  border-radius: 3px 3px 0 0; min-height: 2px;
+  transition: height .4s var(--ease-out);
+}
+.kpi-chart-val  { font-size: 8.5px; color: var(--tx3); font-family: var(--mono); white-space: nowrap; }
+.kpi-chart-label{ font-size: 8.5px; color: var(--tx3); margin-top: 2px; text-transform: uppercase; }
 
 /* =====================================================================
    TABLEAU
@@ -1194,6 +1217,9 @@ td.num { text-align: right; font-family: var(--mono); }
     <button class="ntab" role="tab" aria-selected="false" aria-controls="panel-suivi" data-tab="suivi" id="tab-suivi">
       All Vehicle Ordered
     </button>
+    <button class="ntab" role="tab" aria-selected="false" aria-controls="panel-kpi" data-tab="kpi" id="tab-kpi">
+      Tableau de bord
+    </button>
   </nav>
 
   <main id="main-content">
@@ -1210,7 +1236,9 @@ td.num { text-align: right; font-family: var(--mono); }
       <div class="bandeau bandeau-warn hidden" id="bmw-contract-alert" role="alert"></div>
 
       <div class="params-row" id="params-bmw">
-            <span class="param-lock" title="Taux contractuel : source unique CONFIG.contracts, non modifiable en interface">🔒</span>
+        <div class="card">
+          <label>Taux de commission contractuel
+            <span class="param-lock" title="Taux contractuel : source unique CONTRACTS (Worker), non modifiable en interface">🔒</span>
           </label>
           <div class="rate-row">
             <input type="number" step="0.01" min="0" max="100" class="rate-input" id="rate-bmw" value="" disabled
@@ -1224,12 +1252,12 @@ td.num { text-align: right; font-family: var(--mono); }
         </div>
         <div class="card">
           <label>Condition de déclenchement</label>
-          <span class="param-text">Encaissement effectif (Art.5)</span>
+          <span class="param-text">Livraison effective + PV de mise à disposition signé (Art.5)</span>
         </div>
       </div>
 
       <div class="panel-actions">
-        <button type="button" class="tb-btn" id="consolidated-invoice-btn">
+        <button type="button" class="tb-btn consolidated-invoice-btn" data-concession="BMW_POZZI" id="consolidated-invoice-btn-bmw">
           <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm6.293-2.707a1 1 0 001.414 0l4-4a1 1 0 10-1.414-1.414L11 11.586V3a1 1 0 10-2 0v8.586L6.707 9.293a1 1 0 10-1.414 1.414l4 4z" clip-rule="evenodd"/></svg>
           Facture consolidée
         </button>
@@ -1248,31 +1276,45 @@ td.num { text-align: right; font-family: var(--mono); }
 
     <!-- ============== PANEL FORD ============== -->
     <section id="panel-ford" class="tab-panel" role="tabpanel" aria-labelledby="tab-ford" data-concession="FORD_VILLENEUVE" hidden>
-      <div class="bandeau bandeau-warn" role="alert">
+      <div class="bandeau bandeau-ok hidden" id="ford-banner-real" role="note">
+        Entité à facturer : <strong>VILLENEUVE AUTOMOBILES</strong> — SIREN 308622224 — SIRET 30862222400027<br>
+        Bd de l'Ouest, 59650 Villeneuve d'Ascq — Convention d'apporteur d'affaires signée le
+        <strong id="ford-contract-date" data-source="state.contracts.FORD_VILLENEUVE.signedDate (transmis par le Worker)">—</strong>
+      </div>
+      <div class="bandeau bandeau-warn" id="ford-banner-sim" role="alert">
         Aucune convention d'apporteur d'affaires signée avec Villeneuve Automobiles à ce jour.<br>
         Cet onglet est une simulation de travail — aucun montant n'est exigible tant qu'aucun contrat n'est signé.<br>
         Entité identifiée : VILLENEUVE AUTOMOBILES — SIREN 308622224 — SIRET 30862222400027 — Bd de l'Ouest, 59650 Villeneuve d'Ascq
       </div>
+      <div class="bandeau bandeau-warn hidden" id="ford-contract-alert" role="alert"></div>
 
-      <div class="params-row" id="params-ford"></label>
+      <div class="params-row" id="params-ford">
+        <div class="card">
+          <label>Taux de commission
+            <span class="param-lock hidden" id="ford-rate-lock" title="Taux contractuel : source unique CONTRACTS (Worker), non modifiable en interface">🔒</span>
+          </label>
           <div class="rate-row">
             <input type="number" step="0.01" min="0" max="100" class="rate-input" id="rate-ford" value=""
-              aria-label="Taux de commission Ford en pourcentage — simulation locale, non sauvegardée" data-source="state.contracts.FORD_VILLENEUVE.rate (transmis par le Worker)">
+              aria-label="Taux de commission Ford en pourcentage" data-source="state.contracts.FORD_VILLENEUVE.rate (transmis par le Worker)">
             <span class="param-text">%</span>
           </div>
-          <span class="field-hint">Valeur de travail non persistée sur GitHub — réinitialisée à chaque session.</span>
+          <span class="field-hint" id="ford-rate-hint">Valeur de travail non persistée sur GitHub — réinitialisée à chaque session.</span>
         </div>
         <div class="card">
           <label>Base de calcul</label>
-          <span class="param-text">Non définie contractuellement — simulation uniquement</span>
+          <span class="param-text" id="ford-base-calcul">Non définie contractuellement — simulation uniquement</span>
         </div>
         <div class="card">
           <label>Condition de déclenchement</label>
-          <span class="param-text">Non définie — aucun contrat signé</span>
+          <span class="param-text" id="ford-condition-declenchement">Non définie — aucun contrat signé</span>
         </div>
       </div>
 
       <div class="panel-actions">
+        <button type="button" class="tb-btn consolidated-invoice-btn hidden" data-concession="FORD_VILLENEUVE" id="consolidated-invoice-btn-ford">
+          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm6.293-2.707a1 1 0 001.414 0l4-4a1 1 0 10-1.414-1.414L11 11.586V3a1 1 0 10-2 0v8.586L6.707 9.293a1 1 0 10-1.414 1.414l4 4z" clip-rule="evenodd"/></svg>
+          Facture consolidée
+        </button>
         <button type="button" class="tb-btn add-vehicle-btn" data-concession="FORD_VILLENEUVE">
           <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/></svg>
           Ajouter un véhicule
@@ -1294,6 +1336,20 @@ td.num { text-align: right; font-family: var(--mono); }
       <div class="kpi-row" id="kpi-suivi" role="region" aria-label="Indicateurs flotte complète"></div>
       <div class="table-wrap">
         <table class="data-table" id="table-suivi" aria-label="Tous les véhicules"></table>
+      </div>
+    </section>
+
+    <!-- ============== PANEL TABLEAU DE BORD ============== -->
+    <section id="panel-kpi" class="tab-panel" role="tabpanel" aria-labelledby="tab-kpi" tabindex="0" hidden>
+      <div class="bandeau bandeau-info" role="note" id="kpi-dashboard-scope">
+        Vue comptable simplifiée — uniquement les concessions sous contrat réel signé.
+      </div>
+
+      <div class="kpi-row" id="kpi-dashboard" role="region" aria-label="Indicateurs comptables BMW Ch.Pozzi"></div>
+
+      <div class="card" style="margin-top:18px;">
+        <label>Commission encaissée par mois (12 derniers mois)</label>
+        <div id="kpi-chart" class="kpi-chart" role="img" aria-label="Histogramme de la commission encaissée par mois"></div>
       </div>
     </section>
 
@@ -1646,12 +1702,59 @@ function applyContractConfig() {
       ? `Taux contractuel verrouillé côté serveur (${bmw.rate}%)`
       : `Taux contractuel (${bmw.rate}%) — déverrouillé côté serveur (CONTRACTS.BMW_POZZI.locked = false)`;
   }
-  const rateFordEl = document.getElementById("rate-ford");
-  if (rateFordEl && rateFordEl.value === "") {
-    rateFordEl.value = Number(ford.rate).toFixed(2);
-  }
 
   applyContractEndDateAlert("bmw-contract-alert", bmw, "BMW Ch.Pozzi");
+
+  /* Ford Villeneuve — généralisation : dès que le Worker transmet
+     locked === true pour cette concession (après signature réelle du
+     contrat), tout le panneau bascule automatiquement en mode "réel" :
+     bandeau, taux verrouillé, base de calcul, condition de déclenchement,
+     bouton facture consolidée. Aucune autre modification de code n'est
+     nécessaire — seul CONTRACTS.FORD_VILLENEUVE doit être mis à jour côté
+     Worker (rate, signedDate, locked: true, contratRef), exactement comme
+     cela a été fait pour BMW. */
+  const fordSigned = ford && ford.locked === true;
+
+  const fordBannerReal = document.getElementById("ford-banner-real");
+  const fordBannerSim  = document.getElementById("ford-banner-sim");
+  if (fordBannerReal) fordBannerReal.classList.toggle("hidden", !fordSigned);
+  if (fordBannerSim)  fordBannerSim.classList.toggle("hidden", fordSigned);
+
+  const fordDateEl = document.getElementById("ford-contract-date");
+  if (fordDateEl) fordDateEl.textContent = ford.signedDate ? fmtDateISOtoFR(ford.signedDate) : "—";
+
+  const rateFordEl = document.getElementById("rate-ford");
+  const fordLockEl = document.getElementById("ford-rate-lock");
+  const fordHintEl = document.getElementById("ford-rate-hint");
+  if (rateFordEl) {
+    if (fordSigned || rateFordEl.value === "") {
+      rateFordEl.value = Number(ford.rate).toFixed(2);
+    }
+    rateFordEl.disabled = fordSigned;
+    rateFordEl.title = fordSigned
+      ? `Taux contractuel verrouillé côté serveur (${ford.rate}%)`
+      : `Taux de commission Ford en pourcentage — simulation locale, non sauvegardée`;
+  }
+  if (fordLockEl) fordLockEl.classList.toggle("hidden", !fordSigned);
+  if (fordHintEl) fordHintEl.classList.toggle("hidden", fordSigned);
+
+  const fordBaseCalculEl = document.getElementById("ford-base-calcul");
+  if (fordBaseCalculEl) {
+    fordBaseCalculEl.textContent = fordSigned
+      ? "LLD/LOA : montant HT total du contrat de location signé (Art.5 al.2)"
+      : "Non définie contractuellement — simulation uniquement";
+  }
+  const fordConditionEl = document.getElementById("ford-condition-declenchement");
+  if (fordConditionEl) {
+    fordConditionEl.textContent = fordSigned
+      ? "Livraison effective + PV de mise à disposition signé (Art.5)"
+      : "Non définie — aucun contrat signé";
+  }
+
+  const fordInvoiceBtn = document.getElementById("consolidated-invoice-btn-ford");
+  if (fordInvoiceBtn) fordInvoiceBtn.classList.toggle("hidden", !fordSigned);
+
+  applyContractEndDateAlert("ford-contract-alert", ford, "Ford Villeneuve");
 }
 
 /* Alerte d'échéance de contrat — purement informative. N'active ni ne
@@ -1716,6 +1819,28 @@ function fmtDateISOtoFR(iso) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
 }
+/* "2026-06-28T14:30" -> "28/06/2026 14:30". Champ datetime-local natif. */
+function fmtDateTimeISOtoFR(iso) {
+  if (!iso) return "";
+  const [datePart, timePart] = iso.split("T");
+  return `${fmtDateISOtoFR(datePart)}${timePart ? " " + timePart : ""}`;
+}
+/* Délai moyen de règlement, en jours, calculé uniquement sur les véhicules où
+   date_facture ET date_paiement sont renseignées (sert à estimer quand les
+   factures encore en attente seront probablement réglées). */
+function computeDelaiMoyenPaiement(vehicules) {
+  const delais = vehicules
+    .filter(v => v.date_facture && v.date_paiement)
+    .map(v => {
+      const facture  = new Date(v.date_facture + "T00:00:00");
+      const paiement = new Date(v.date_paiement);
+      const jours = (paiement - facture) / 86400000;
+      return jours;
+    })
+    .filter(j => isFinite(j) && j >= 0);
+  if (delais.length === 0) return null;
+  return delais.reduce((s, j) => s + j, 0) / delais.length;
+}
 function fmtEUR(n) {
   if (n === null || n === undefined || n === "") return "";
   return Number(n).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
@@ -1739,8 +1864,7 @@ function tauxConcession(concessionKey) {
 }
 function computeCommission(v) {
   const taux = tauxConcession(v.concession);
-  if (v.statut_livraison === "LIVRE" && v.pv_signe === "SIGNE" &&
-      v.statut_paiement === "PAYE" && v.valeur_vente_ht) {
+  if (v.statut_livraison === "LIVRE" && v.pv_signe === "SIGNE" && v.valeur_vente_ht) {
     return Number(v.valeur_vente_ht) * taux;
   }
   return 0;
@@ -1805,9 +1929,11 @@ function computeLatePenalty(v) {
    attestée par un PV de mise à disposition signé de sa part (conformité
    du véhicule à sa commande) — le statut "Livré" seul ne suffit pas :
    il ne fait que constater une étape logistique, pas un acte contractuel
-   opposable. C'est le PV signé qui sécurise juridiquement la facturation,
-   en complément de l'encaissement effectif (Art.5 — condition contractuelle
-   de déclenchement de la commission). */
+   opposable. C'est le PV signé qui sécurise juridiquement la facturation
+   (Art.5 — condition contractuelle de déclenchement de la commission).
+   Le statut "Payé" n'est PAS une condition de facturation : c'est l'étape
+   suivante, postérieure à l'émission de la facture, qui suit l'encaissement
+   par ZEEV CARS de sa propre commission. */
 /* Texte d'infobulle expliquant pourquoi l'éligibilité a sa valeur actuelle —
    purement informatif, ne change aucune règle de calcul. Répond à une
    confusion légitime : "Éligibilité" est un résultat dérivé, pas un champ à
@@ -1816,17 +1942,15 @@ function eligibiliteHint(v) {
   const checks = [
     { label: "Statut livraison = Livré",            ok: v.statut_livraison === "LIVRE" },
     { label: "PV de mise à disposition = Signé",     ok: v.pv_signe === "SIGNE" },
-    { label: "Statut paiement = Payé",                ok: v.statut_paiement === "PAYE" },
   ];
   const missing = checks.filter(c => !c.ok).map(c => c.label);
-  if (missing.length === 0) return "Calculé automatiquement depuis 3 colonnes — toutes les conditions sont remplies, ce véhicule est Facturable.";
-  return "Calculé automatiquement depuis 3 colonnes (non modifiable directement ici). Pour le faire évoluer, modifiez plutôt : " + missing.join(" · ") + ".";
+  if (missing.length === 0) return "Calculé automatiquement depuis 2 colonnes — toutes les conditions sont remplies, ce véhicule est Facturable. Le statut « Payé » n'est plus une condition ici : il se renseigne après l'émission de la facture.";
+  return "Calculé automatiquement depuis 2 colonnes (non modifiable directement ici). Pour le faire évoluer, modifiez plutôt : " + missing.join(" · ") + ".";
 }
 
 function computeEligibilite(v) {
   if (v.statut_livraison !== "LIVRE") return "ATTENTE_LIVRAISON";
   if (v.pv_signe !== "SIGNE") return "ATTENTE_PV";
-  if (v.statut_paiement !== "PAYE") return "ATTENTE_PAIEMENT";
   return "FACTURABLE";
 }
 
@@ -1839,13 +1963,12 @@ const LABELS = {
     FACTURABLE: "Facturable",
     ATTENTE_LIVRAISON: "En attente de livraison",
     ATTENTE_PV: "Livré — PV non signé",
-    ATTENTE_PAIEMENT: "PV signé — en attente de paiement",
   },
 };
 const BADGE_CLASS = {
   LIVRE: "badge-gr", NON_LIVRE: "badge-rd", EN_COMMANDE: "badge-am",
   FACTURABLE: "badge-gr", ATTENTE_LIVRAISON: "badge-rd",
-  ATTENTE_PV: "badge-am", ATTENTE_PAIEMENT: "badge-am",
+  ATTENTE_PV: "badge-am",
   FACTURE: "badge-ac", NON_FACTURE: "badge-nu",
   SIGNE: "badge-gr", NON_SIGNE: "badge-rd",
 };
@@ -2261,15 +2384,40 @@ window.addEventListener("afterprint", () => {
    (source unique du taux, jamais recalculé/dupliqué ailleurs). Disponible
    uniquement pour BMW Ch.Pozzi (convention réellement signée) et pour les
    véhicules au statut "Facturable" (livré + payé + valeur renseignée). */
+/* =====================================================================
+   IDENTITÉ LÉGALE PAR CONCESSION — utilisée pour générer les factures
+   (simple ou consolidée) de façon générique. Dès qu'une nouvelle concession
+   a un contrat signé (state.contracts[clé].locked === true côté Worker),
+   ses factures fonctionnent automatiquement avec ces coordonnées, sans
+   modification de code supplémentaire ici.
+   ===================================================================== */
+const CONCESSION_LEGAL_INFO = {
+  BMW_POZZI: {
+    nom: "CH. POZZI",
+    formeJuridique: "SAS au capital de 3 000 000 €",
+    adresseLigne1: "12-14 Place du Général Koenig",
+    adresseLigne2: "75017 Paris, FR",
+    identifiants: "RCS Paris n°525 580 288 — SIRET 525 580 288 00146",
+  },
+  FORD_VILLENEUVE: {
+    nom: "VILLENEUVE AUTOMOBILES",
+    formeJuridique: "",
+    adresseLigne1: "Bd de l'Ouest",
+    adresseLigne2: "59650 Villeneuve d'Ascq, FR",
+    identifiants: "SIREN 308 622 224 — SIRET 308 622 224 00027",
+  },
+};
+
 async function printInvoice(id, concession) {
-  if (concession !== "BMW_POZZI") {
+  const contract = state.contracts && state.contracts[concession];
+  if (!contract || contract.locked !== true) {
     toast("Facture indisponible : aucune convention signée pour cette concession (simulation uniquement).", "error");
     return;
   }
   const v = (state.data.vehicules || []).find(x => x.id === id);
   if (!v) { toast("Véhicule introuvable.", "error"); return; }
   if (computeEligibilite(v) !== "FACTURABLE") {
-    toast("Ce véhicule n'est pas encore Facturable (PV de mise à disposition signé + payé + valeur de vente requis).", "error");
+    toast("Ce véhicule n'est pas encore Facturable (livré + PV de mise à disposition signé + valeur de vente requis).", "error");
     return;
   }
 
@@ -2281,7 +2429,8 @@ async function printInvoice(id, concession) {
     return;
   }
 
-  const rate       = state.contracts.BMW_POZZI.rate; // bug corrigé : CONFIG.contracts n'existe pas à l'exécution
+  const info       = CONCESSION_LEGAL_INFO[concession] || { nom: concession, adresseLigne1: "", adresseLigne2: "", identifiants: "" };
+  const rate       = contract.rate; // source unique : transmise par le Worker, jamais codée en dur ici
   const valeur     = Number(v.valeur_vente_ht) || 0;
   const commission = +(valeur * rate / 100).toFixed(2);
   const today      = new Date().toLocaleDateString("fr-FR");
@@ -2308,9 +2457,9 @@ async function printInvoice(id, concession) {
         </div>
         <div>
           <strong>Destinataire</strong><br>
-          CH. POZZI — SAS au capital de 3 000 000 €<br>
-          RCS Paris n°525 580 288 — SIRET 52558028800146<br>
-          12-14 Place du Général Koenig, 75017 Paris
+          ${esc(info.nom)}${info.formeJuridique ? " — " + esc(info.formeJuridique) : ""}<br>
+          ${esc(info.identifiants)}<br>
+          ${esc(info.adresseLigne1)}, ${esc(info.adresseLigne2)}
         </div>
       </section>
 
@@ -2336,7 +2485,8 @@ async function printInvoice(id, concession) {
           Base de calcul : montant HT total du contrat de location signé (Art.5 al.2).
           Conformité du véhicule à la commande attestée par PV de mise à disposition signé du conducteur
           le ${fmtDateISOtoFR(v.date_pv_signe) || "—"}. Condition de déclenchement de la commission :
-          encaissement effectif (Art.5) — statut paiement constaté : ${esc(statutPaiementLabel)}.
+          livraison effective et PV de mise à disposition signé (Art.5) — statut paiement (commission)
+          constaté : ${esc(statutPaiementLabel)}.
         </p>
       </section>
 
@@ -2373,7 +2523,7 @@ function addDaysIso(iso, days) {
 }
 
 function setupConsolidatedInvoice() {
-  const btn          = document.getElementById("consolidated-invoice-btn");
+  const buttons       = document.querySelectorAll(".consolidated-invoice-btn");
   const dialog        = document.getElementById("consolidated-invoice-dialog");
   const closeBtn      = document.getElementById("consolidated-invoice-dialog-close");
   const listEl        = document.getElementById("consolidated-invoice-list");
@@ -2383,7 +2533,9 @@ function setupConsolidatedInvoice() {
   const numeroEl       = document.getElementById("ci-numero");
   const emissionEl     = document.getElementById("ci-emission");
   const echeanceEl     = document.getElementById("ci-echeance");
-  if (!btn || !dialog) return;
+  if (!buttons.length || !dialog) return;
+
+  let currentConcession = null; // déterminée au clic, selon le bouton utilisé
 
   function refreshTotal() {
     let total = 0;
@@ -2393,8 +2545,9 @@ function setupConsolidatedInvoice() {
     totalEl.textContent = fmtEUR(total);
   }
 
-  function openDialog() {
-    const vehicules = getVehicules("BMW_POZZI").filter(v => computeEligibilite(v) === "FACTURABLE");
+  function openDialog(concession) {
+    currentConcession = concession;
+    const vehicules = getVehicules(concession).filter(v => computeEligibilite(v) === "FACTURABLE");
     if (vehicules.length === 0) {
       toast("Aucun véhicule Facturable pour le moment (voir colonne Éligibilité).", "error");
       return;
@@ -2417,7 +2570,9 @@ function setupConsolidatedInvoice() {
     dialog.showModal();
   }
 
-  btn.addEventListener("click", openDialog);
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => openDialog(btn.dataset.concession));
+  });
   closeBtn.addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
   selectAllBtn.addEventListener("click", () => {
@@ -2450,8 +2605,12 @@ function setupConsolidatedInvoice() {
 }
 
 async function renderConsolidatedInvoice({ numero, emission, echeance, vehicules }) {
-  const payment = await apiGetPaymentDetails(); // 403 si scope != FULL, 500 si non configuré — propagé à l'appelant
-  const rate = state.contracts.BMW_POZZI.rate; // source correcte : transmise par le Worker
+  const payment    = await apiGetPaymentDetails(); // 403 si scope != FULL, 500 si non configuré — propagé à l'appelant
+  const concession = vehicules[0] && vehicules[0].concession;
+  const contract   = state.contracts && state.contracts[concession];
+  if (!contract) throw new Error("Concession inconnue ou contrat non transmis par le Worker.");
+  const info       = CONCESSION_LEGAL_INFO[concession] || { nom: concession, adresseLigne1: "", adresseLigne2: "", identifiants: "" };
+  const rate       = contract.rate; // source correcte : transmise par le Worker
   let totalHT = 0;
   const rows = vehicules.map((v, i) => {
     const valeur     = Number(v.valeur_vente_ht) || 0;
@@ -2490,10 +2649,9 @@ async function renderConsolidatedInvoice({ numero, emission, echeance, vehicules
           SIRET 105 926 158 00012
         </div>
         <div>
-          <strong>CH. POZZI</strong>
-          12-14 Place du Général Koenig<br>75017 Paris, FR<br>
-          SAS au capital de 3 000 000 € — RCS Paris n°525 580 288<br>
-          SIRET 525 580 288 00146
+          <strong>${esc(info.nom)}</strong>
+          ${esc(info.adresseLigne1)}<br>${esc(info.adresseLigne2)}<br>
+          ${info.formeJuridique ? esc(info.formeJuridique) + " — " : ""}${esc(info.identifiants)}
         </div>
       </section>
 
@@ -2514,9 +2672,10 @@ async function renderConsolidatedInvoice({ numero, emission, echeance, vehicules
 
       <p class="invoice-note">
         TVA non applicable — Article 263 du CGI - Activités intermédiaires. Type de transaction : Services.<br>
-        Commission due en application de la convention d'apporteur d'affaires signée le 09/06/2026 (Art.5), calculée sur
+        Commission due en application de la convention d'apporteur d'affaires signée le
+        ${esc(fmtDateISOtoFR(contract.signedDate) || "—")} (Art.5), calculée sur
         le montant HT du contrat de location signé par le client (hors assurances, frais administratifs et taxes) —
-        condition de déclenchement : encaissement effectif de l'opération.<br>
+        condition de déclenchement : livraison effective du véhicule et signature du PV de mise à disposition (Art.5).<br>
         Pas d'escompte accordé pour paiement anticipé. En cas de non-paiement à la date d'échéance, des pénalités
         calculées à trois fois le taux d'intérêt légal seront appliquées. Tout retard de paiement entraînera une
         indemnité forfaitaire pour frais de recouvrement de 40 €.
@@ -2625,6 +2784,7 @@ function renderAll() {
   renderConcessionPanel("BMW_POZZI",      "table-bmw",   "kpi-bmw");
   renderConcessionPanel("FORD_VILLENEUVE","table-ford",  "kpi-ford");
   renderSuivi();
+  renderKpiDashboard();
   document.getElementById("footer-info").textContent =
     `${state.data.vehicules.length} véhicules — dernière synchronisation locale : ${nowStamp()}`;
 }
@@ -2642,6 +2802,25 @@ function renderKPI(containerId, vehicules, simulation = false) {
   const commissionTotale   = vehicules.reduce((s, v) => s + computeCommission(v), 0);
   const suffix             = simulation ? " (simulation)" : "";
 
+  /* Suivi des règlements — demande explicite : pouvoir estimer combien est
+     déjà encaissé, combien reste en attente, et le délai moyen constaté
+     entre date de facture et date de paiement reçu (pour anticiper les
+     prochains encaissements). */
+  const commissionEncaissee = vehicules
+    .filter(v => v.statut_paiement === "PAYE")
+    .reduce((s, v) => s + computeCommission(v), 0);
+  const commissionEnAttente = commissionTotale - commissionEncaissee;
+  const delaiMoyen = computeDelaiMoyenPaiement(vehicules);
+
+  /* Estimation annuelle simple : ce qui est encaissé à ce jour, ramené sur
+     une année pleine au prorata des jours écoulés depuis le 1er janvier.
+     C'est une projection indicative (pas un engagement chiffré), explicitement
+     présentée comme telle. */
+  const now        = new Date();
+  const debutAnnee = new Date(now.getFullYear(), 0, 1);
+  const joursEcoules = Math.max(1, Math.round((now - debutAnnee) / 86400000));
+  const estimationAnnuelle = commissionEncaissee * (365 / joursEcoules);
+
   const baseCards = `
     <div class="kpi-card"><div class="kpi-label">Total véhicules</div><div class="kpi-value">${total}</div></div>
     <div class="kpi-card"><div class="kpi-label">Livrés</div><div class="kpi-value gr">${livres}</div></div>
@@ -2650,9 +2829,145 @@ function renderKPI(containerId, vehicules, simulation = false) {
   const financialCards = `
     <div class="kpi-card"><div class="kpi-label">Facturables</div><div class="kpi-value gr">${facturables}</div></div>
     <div class="kpi-card"><div class="kpi-label">Valeur de vente totale (HT)</div><div class="kpi-value">${fmtEUR(valeurVenteTotale)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Commission HT totale${suffix}</div><div class="kpi-value">${fmtEUR(commissionTotale)}</div></div>`;
+    <div class="kpi-card"><div class="kpi-label">Commission HT totale${suffix}</div><div class="kpi-value">${fmtEUR(commissionTotale)}</div></div>
+    <div class="kpi-card" title="Commission des véhicules dont le statut paiement est « Payé ».">
+      <div class="kpi-label">Commission encaissée${suffix}</div><div class="kpi-value gr">${fmtEUR(commissionEncaissee)}</div>
+    </div>
+    <div class="kpi-card" title="Commission facturable ou facturée, mais pas encore marquée « Payé ».">
+      <div class="kpi-label">Commission en attente${suffix}</div><div class="kpi-value am">${fmtEUR(commissionEnAttente)}</div>
+    </div>
+    <div class="kpi-card" title="Calculé sur les véhicules où date facture ET date paiement reçu sont renseignées.">
+      <div class="kpi-label">Délai moyen de règlement</div>
+      <div class="kpi-value">${delaiMoyen === null ? "—" : Math.round(delaiMoyen) + " j"}</div>
+    </div>
+    <div class="kpi-card" title="Projection indicative : commission encaissée à ce jour, ramenée sur une année pleine. Pas un engagement chiffré.">
+      <div class="kpi-label">Estimation annuelle${suffix}</div><div class="kpi-value">${fmtEUR(estimationAnnuelle)}</div>
+    </div>`;
 
   document.getElementById(containerId).innerHTML = baseCards + (isRestricted() ? "" : financialCards);
+}
+
+/* =====================================================================
+   TABLEAU DE BORD — vision comptable simple, uniquement BMW Ch.Pozzi
+   (seul contrat réel). Ford (simulation) est volontairement exclu : on ne
+   mélange jamais argent réel et projection de travail.
+   Trois étapes du cycle de la commission, dans l'ordre réel du workflow :
+     à facturer  ->  facturé (créance, en attente de paiement)  ->  encaissé
+   ===================================================================== */
+function renderKpiDashboard() {
+  if (isRestricted()) {
+    document.getElementById("kpi-dashboard").innerHTML =
+      `<div class="kpi-card"><div class="kpi-label">Accès restreint</div><div class="kpi-value">—</div></div>`;
+    document.getElementById("kpi-chart").innerHTML = "";
+    return;
+  }
+
+  /* Concessions "réelles" = contrat verrouillé (locked === true) transmis par
+     le Worker. Dès que Ford Villeneuve (ou toute future concession) passe à
+     locked: true, elle apparaît ici automatiquement, sans aucune autre
+     modification de code. On ne mélange jamais une concession en simulation
+     dans ces totaux. */
+  const concessionsReelles = Object.keys(state.contracts || {})
+    .filter(key => state.contracts[key] && state.contracts[key].locked === true);
+
+  const bandeau = document.getElementById("kpi-dashboard-scope");
+  if (bandeau) {
+    bandeau.textContent = concessionsReelles.length
+      ? "Vue comptable simplifiée — concession(s) sous contrat réel signé : " +
+        concessionsReelles.map(k => CONCESSION_LABELS[k] || k).join(", ") +
+        ". Toute concession encore en simulation est volontairement exclue de ces totaux."
+      : "Aucune concession sous contrat réel signé à ce jour — le tableau de bord s'activera automatiquement dès qu'un contrat sera verrouillé (locked: true) côté Worker.";
+  }
+
+  const vehicules = state.data.vehicules.filter(v => concessionsReelles.includes(v.concession));
+
+  const aFacturer = vehicules
+    .filter(v => computeEligibilite(v) === "FACTURABLE" && v.statut_facturation !== "FACTURE")
+    .reduce((s, v) => s + computeCommission(v), 0);
+
+  const factureEnAttente = vehicules
+    .filter(v => v.statut_facturation === "FACTURE" && v.statut_paiement !== "PAYE")
+    .reduce((s, v) => s + computeCommission(v), 0);
+
+  const encaisse = vehicules
+    .filter(v => v.statut_paiement === "PAYE")
+    .reduce((s, v) => s + computeCommission(v), 0);
+
+  const totalTheorique = aFacturer + factureEnAttente + encaisse;
+  const totalFacture   = factureEnAttente + encaisse; // tout ce qui a été facturé un jour
+  const tauxRecouvrement = totalFacture > 0 ? (encaisse / totalFacture) * 100 : null;
+
+  const delaiMoyen = computeDelaiMoyenPaiement(vehicules);
+
+  const penalitesEnCours = vehicules.reduce((s, v) => {
+    const p = computeLatePenalty(v);
+    return s + (p ? p.total : 0);
+  }, 0);
+
+  const now          = new Date();
+  const debutAnnee   = new Date(now.getFullYear(), 0, 1);
+  const joursEcoules = Math.max(1, Math.round((now - debutAnnee) / 86400000));
+  const estimationAnnuelle = encaisse * (365 / joursEcoules);
+
+  const cards = `
+    <div class="kpi-card" title="Véhicules Facturable mais pas encore facturés.">
+      <div class="kpi-label">À facturer</div><div class="kpi-value am">${fmtEUR(aFacturer)}</div>
+    </div>
+    <div class="kpi-card" title="Facturé, mais le paiement n'est pas encore enregistré comme reçu (créance client).">
+      <div class="kpi-label">Facturé — en attente</div><div class="kpi-value am">${fmtEUR(factureEnAttente)}</div>
+    </div>
+    <div class="kpi-card" title="Commission dont le paiement a été reçu et daté.">
+      <div class="kpi-label">Encaissé</div><div class="kpi-value gr">${fmtEUR(encaisse)}</div>
+    </div>
+    <div class="kpi-card" title="Somme des trois cartes ci-dessus : ce que représente l'activité BMW à ce jour.">
+      <div class="kpi-label">Total (théorique)</div><div class="kpi-value">${fmtEUR(totalTheorique)}</div>
+    </div>
+    <div class="kpi-card" title="Encaissé ÷ Facturé. Indique la part de ce qui a été facturé qui a réellement été payée.">
+      <div class="kpi-label">Taux de recouvrement</div>
+      <div class="kpi-value">${tauxRecouvrement === null ? "—" : tauxRecouvrement.toFixed(0) + " %"}</div>
+    </div>
+    <div class="kpi-card" title="Calculé sur les factures où une date de paiement reçu est renseignée.">
+      <div class="kpi-label">Délai moyen de règlement</div>
+      <div class="kpi-value">${delaiMoyen === null ? "—" : Math.round(delaiMoyen) + " j"}</div>
+    </div>
+    <div class="kpi-card" title="Pénalités de retard cumulées sur les factures actuellement en retard (Art.8).">
+      <div class="kpi-label">Pénalités de retard en cours</div>
+      <div class="kpi-value ${penalitesEnCours > 0 ? "rd" : ""}">${fmtEUR(penalitesEnCours)}</div>
+    </div>
+    <div class="kpi-card" title="Projection indicative : encaissé à ce jour, ramené sur une année pleine. Pas un engagement chiffré.">
+      <div class="kpi-label">Estimation annuelle</div><div class="kpi-value">${fmtEUR(estimationAnnuelle)}</div>
+    </div>`;
+
+  document.getElementById("kpi-dashboard").innerHTML = cards;
+  renderKpiChart(vehicules);
+}
+
+/* Histogramme simple : commission encaissée par mois, 12 derniers mois,
+   classée sur la date de paiement reçu (pas la date de facture). */
+function renderKpiChart(vehicules) {
+  const mois = [];
+  const now = new Date();
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    mois.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: d.toLocaleDateString("fr-FR", { month: "short" }), total: 0 });
+  }
+  const parMois = Object.fromEntries(mois.map(m => [m.key, m]));
+
+  vehicules.forEach(v => {
+    if (v.statut_paiement !== "PAYE" || !v.date_paiement) return;
+    const key = v.date_paiement.slice(0, 7); // "YYYY-MM"
+    if (parMois[key]) parMois[key].total += computeCommission(v);
+  });
+
+  const max = Math.max(1, ...mois.map(m => m.total));
+  const html = mois.map(m => `
+    <div class="kpi-chart-col">
+      <div class="kpi-chart-val">${m.total > 0 ? fmtEUR(m.total) : ""}</div>
+      <div class="kpi-chart-bar" style="height:${Math.max(2, (m.total / max) * 100)}%"></div>
+      <div class="kpi-chart-label">${m.label}</div>
+    </div>`).join("");
+
+  document.getElementById("kpi-chart").innerHTML = html;
 }
 
 /* Visibilité restreinte : collaborateur créé avec scope "LIVRAISON_ONLY".
@@ -2678,11 +2993,16 @@ function esc(str) {
 
 function renderConcessionPanel(concession, tableId, kpiId) {
   const vehicules         = getVehicules(concession);
-  /* Ford = aucune convention signée à ce jour → tout ce qui dépend du taux
-     (commission affichée) est une SIMULATION locale. Elle n'est jamais incluse
-     dans le payload envoyé via apiSaveData : seuls les champs métiers (livraison,
-     paiement, facturation...) du véhicule sont persistés — voir attachCellHandlers. */
-  const simulation = concession === "FORD_VILLENEUVE";
+  /* Simulation = aucun contrat verrouillé (locked === true) transmis par le
+     Worker pour cette concession. Dès qu'un contrat est signé et que le
+     Worker renvoie locked === true, cette concession bascule AUTOMATIQUEMENT
+     en mode réel ici — aucune autre modification de code n'est nécessaire.
+     Tout ce qui dépend du taux en mode simulation est une estimation locale,
+     jamais incluse dans le payload envoyé via apiSaveData : seuls les champs
+     métiers (livraison, paiement, facturation...) du véhicule sont persistés
+     — voir attachCellHandlers. */
+  const contract   = state.contracts && state.contracts[concession];
+  const simulation = !contract || contract.locked !== true;
   const restricted = isRestricted();
   renderKPI(kpiId, vehicules, simulation);
 
@@ -2706,7 +3026,7 @@ function renderConcessionPanel(concession, tableId, kpiId) {
     : ["N°", "Client", "Conducteur", "Modèle / Version", "Immat.", "VIN",
        "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
        "Valeur de vente du véhicule HT (€)",
-       "Statut paiement", "Statut facturation", "N° facture", "Date facture",
+       "Statut paiement", "Date paiement reçu", "Statut facturation", "N° facture", "Date facture",
        simulation ? "Commission HT (simulation)" : "Commission HT",
        ...(simulation ? [] : ["Pénalité de retard (Art.8)"]),
        "Éligibilité", "Facture", "Remarques", "Source", "Dernière MAJ"];
@@ -2726,7 +3046,7 @@ function renderConcessionPanel(concession, tableId, kpiId) {
       ? "Imprimer la facture de commission pour ce véhicule"
       : simulation
         ? "Aucune convention signée avec Villeneuve Automobiles — facture non disponible (simulation)"
-        : "Disponible uniquement lorsque le véhicule est Facturable (PV signé + payé + valeur renseignée)";
+        : "Disponible uniquement lorsque le véhicule est Facturable (livré + PV signé + valeur renseignée)";
 
     html += `<tr data-id="${esc(v.id)}">`;
     html += `<td>${i + 1}</td>`;
@@ -2752,6 +3072,7 @@ function renderConcessionPanel(concession, tableId, kpiId) {
 
       html += cellSelect(v.id, "statut_paiement", v.statut_paiement, canEdit,
         { INCONNU: "Inconnu / à vérifier", PAYE: "Payé", NON_PAYE: "Non payé" });
+      html += cellInput(v.id, "date_paiement", v.date_paiement, canEdit, "datetime-local");
       html += cellSelect(v.id, "statut_facturation", v.statut_facturation, canEdit,
         { NON_FACTURE: "Non facturé", FACTURE: "Facturé" });
       html += cellInput(v.id, "numero_facture", v.numero_facture, canEdit, "text");
@@ -2791,8 +3112,9 @@ function renderConcessionPanel(concession, tableId, kpiId) {
 function cellInput(id, field, value, editable, type) {
   if (!editable) {
     let display = value || "";
-    if (type === "date")   display = fmtDateISOtoFR(value);
-    if (type === "number") display = fmtEUR(value);
+    if (type === "date")          display = fmtDateISOtoFR(value);
+    if (type === "datetime-local") display = fmtDateTimeISOtoFR(value);
+    if (type === "number")        display = fmtEUR(value);
     return `<td>${display}</td>`;
   }
   const val = value === null || value === undefined ? "" : value;
@@ -2822,6 +3144,24 @@ function attachCellHandlers(tableId, concession) {
       let val = input.value;
       if (field === "valeur_vente_ht") val = val === "" ? null : parseFloat(val);
       v[field]   = val;
+
+      /* Confort de saisie : renseigner une date de paiement reçu implique
+         logiquement "Payé" — on synchronise le statut sans bloquer une
+         correction manuelle ultérieure (l'utilisateur peut toujours repasser
+         le statut à autre chose ensuite, ce n'est qu'une aide, pas une règle
+         imposée). À l'inverse, vider la date repasse sur "Non payé" si le
+         statut était "Payé", pour éviter une incohérence visible. */
+      if (field === "date_paiement") {
+        const statutSelect = table.querySelector(`select[data-id="${CSS.escape(id)}"][data-field="statut_paiement"]`);
+        if (val) {
+          v.statut_paiement = "PAYE";
+          if (statutSelect) statutSelect.value = "PAYE";
+        } else if (v.statut_paiement === "PAYE") {
+          v.statut_paiement = "NON_PAYE";
+          if (statutSelect) statutSelect.value = "NON_PAYE";
+        }
+      }
+
       v.maj_par  = state.user.name;
       v.maj_le   = new Date().toISOString().slice(0, 16).replace("T", " ");
       state.dirty = true;
@@ -3073,7 +3413,7 @@ window.addEventListener("beforeunload", (e) => {
 const CSV_IMPORT_WRITABLE_FIELDS = new Set([
   "client", "conducteur", "modele", "immat", "vin",
   "statut_livraison", "date_livraison", "pv_signe",
-  "valeur_vente_ht", "statut_paiement", "statut_facturation",
+  "valeur_vente_ht", "statut_paiement", "date_paiement", "statut_facturation",
   "numero_facture", "date_facture", "source", "remarques", "marque",
 ]);
 const CSV_IMPORT_KNOWN_READONLY_FIELDS = new Set([
@@ -3109,6 +3449,10 @@ const CSV_HEADER_ALIASES = {
   "statut paiement client": "statut_paiement",
   "statut paiement client (saisie)": "statut_paiement",
   "statut_paiement": "statut_paiement",
+  "date paiement reçu": "date_paiement",
+  "date de paiement": "date_paiement",
+  "date paiement": "date_paiement",
+  "date_paiement": "date_paiement",
   "commission ht": "__readonly__", // colonne calculée, jamais réimportée
   "statut éligibilité facturation": "__readonly__",
   "source": "source",
