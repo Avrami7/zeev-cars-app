@@ -832,9 +832,10 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 .kpi-chart {
   display: flex; align-items: flex-end; gap: 6px;
   height: 130px; padding: 10px 6px 0; margin-top: 8px;
+  overflow-x: auto;
 }
 .kpi-chart-col {
-  flex: 1; display: flex; flex-direction: column; align-items: center;
+  flex: 1 0 auto; min-width: 26px; display: flex; flex-direction: column; align-items: center;
   justify-content: flex-end; height: 100%; gap: 4px;
 }
 .kpi-chart-bar {
@@ -844,6 +845,15 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 }
 .kpi-chart-val  { font-size: 8.5px; color: var(--tx3); font-family: var(--mono); white-space: nowrap; }
 .kpi-chart-label{ font-size: 8.5px; color: var(--tx3); margin-top: 2px; text-transform: uppercase; }
+
+.chart-range-toggle { display: flex; gap: 4px; background: var(--sur3); border-radius: 8px; padding: 3px; }
+.chart-range-btn {
+  border: none; background: transparent; color: var(--tx3);
+  font-family: var(--font); font-size: 10.5px; font-weight: 600;
+  padding: 5px 10px; border-radius: 6px; cursor: pointer; transition: all .15s var(--ease);
+}
+.chart-range-btn:hover { color: var(--tx2); }
+.chart-range-btn.active { background: var(--ac); color: #fff; }
 
 /* =====================================================================
    TABLEAU
@@ -1386,7 +1396,13 @@ td.num { text-align: right; font-family: var(--mono); }
       <div class="kpi-row" id="kpi-dashboard" role="region" aria-label="Indicateurs comptables BMW Ch.Pozzi"></div>
 
       <div class="card" style="margin-top:18px;">
-        <label>Commission encaissée par mois (12 derniers mois)</label>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+          <label id="kpi-chart-label" style="margin:0;">Commission encaissée par mois (12 derniers mois)</label>
+          <div class="chart-range-toggle" role="group" aria-label="Période du graphique">
+            <button type="button" class="chart-range-btn active" data-range="12m">12 derniers mois</button>
+            <button type="button" class="chart-range-btn" data-range="all">Historique complet</button>
+          </div>
+        </div>
         <div id="kpi-chart" class="kpi-chart" role="img" aria-label="Histogramme de la commission encaissée par mois"></div>
       </div>
     </section>
@@ -3019,23 +3035,53 @@ function renderKpiDashboard() {
     </div>`;
 
   document.getElementById("kpi-dashboard").innerHTML = cards;
-  renderKpiChart(vehicules);
+  /* Mémorisé pour permettre de re-tracer le graphique seul (changement de
+     période) sans recalculer tout le tableau de bord. */
+  state.kpiChartVehicules = vehicules;
+  renderKpiChart(vehicules, state.kpiChartRange || "12m");
 }
 
-/* Histogramme simple : commission encaissée par mois, 12 derniers mois,
-   classée sur la date de paiement reçu (pas la date de facture). */
-function renderKpiChart(vehicules) {
-  const mois = [];
+/* Histogramme simple : commission encaissée par mois, classée sur la date de
+   paiement reçu (pas la date de facture).
+   range === "12m" : fenêtre glissante des 12 derniers mois (toujours).
+   range === "all" : depuis le mois du tout premier paiement encaissé jusqu'à
+   aujourd'hui — peut donc dépasser 12 colonnes si l'historique est plus long. */
+function renderKpiChart(vehicules, range) {
+  range = range || "12m";
   const now = new Date();
-  for (let i = 11; i >= 0; i--) {
+  const moisLabelEl = document.getElementById("kpi-chart-label");
+
+  const paiementsDates = vehicules
+    .filter(v => v.statut_paiement === "PAYE" && v.date_paiement)
+    .map(v => v.date_paiement.slice(0, 7)); // "YYYY-MM"
+
+  let nbMois = 12;
+  if (range === "all" && paiementsDates.length > 0) {
+    const plusAncien = paiementsDates.sort()[0]; // "YYYY-MM", tri lexicographique fiable ici
+    const [y0, m0] = plusAncien.split("-").map(Number);
+    nbMois = (now.getFullYear() - y0) * 12 + (now.getMonth() + 1 - m0) + 1;
+    nbMois = Math.max(1, nbMois);
+  }
+
+  if (moisLabelEl) {
+    moisLabelEl.textContent = range === "all"
+      ? `Commission encaissée par mois (historique complet — ${nbMois} mois)`
+      : "Commission encaissée par mois (12 derniers mois)";
+  }
+
+  const mois = [];
+  for (let i = nbMois - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    mois.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: d.toLocaleDateString("fr-FR", { month: "short" }), total: 0 });
+    const label = nbMois > 18
+      ? d.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }) // ex: "juil. 24" si très long historique
+      : d.toLocaleDateString("fr-FR", { month: "short" });
+    mois.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label, total: 0 });
   }
   const parMois = Object.fromEntries(mois.map(m => [m.key, m]));
 
   vehicules.forEach(v => {
     if (v.statut_paiement !== "PAYE" || !v.date_paiement) return;
-    const key = v.date_paiement.slice(0, 7); // "YYYY-MM"
+    const key = v.date_paiement.slice(0, 7);
     if (parMois[key]) parMois[key].total += computeCommission(v);
   });
 
@@ -3049,6 +3095,17 @@ function renderKpiChart(vehicules) {
 
   document.getElementById("kpi-chart").innerHTML = html;
 }
+
+(function setupChartRangeToggle() {
+  document.querySelectorAll(".chart-range-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".chart-range-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.kpiChartRange = btn.dataset.range;
+      if (state.kpiChartVehicules) renderKpiChart(state.kpiChartVehicules, state.kpiChartRange);
+    });
+  });
+})();
 
 /* Visibilité restreinte : collaborateur créé avec scope "LIVRAISON_ONLY".
    Le compte système (Viktorija) et tout collaborateur "FULL" voient tout. */
