@@ -1146,6 +1146,15 @@ td.num { text-align: right; font-family: var(--mono); }
   .invoice-payment-title { font-weight: 700; margin-bottom: 8px; }
   .invoice-payment-table td:first-child { color: #555; padding-right: 18px; width: 140px; }
   .invoice-payment-table td:last-child { font-weight: 600; }
+
+  /* Supplément immatriculations — détail par véhicule sous la ligne
+     agrégée "Commissions", pour la traçabilité (demande explicite). */
+  .invoice-immat-block { margin: 14px 0; }
+  .invoice-immat-title { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #555; margin-bottom: 5px; }
+  .invoice-immat-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+  .invoice-immat-table th { text-align: left; font-weight: 600; padding: 4px 8px; border-bottom: 1.5px solid #ccc; color: #555; font-size: 9px; text-transform: uppercase; }
+  .invoice-immat-table td { padding: 4px 8px; border-bottom: 1px solid #eee; }
+  .invoice-immat-table th.num, .invoice-immat-table td.num { text-align: right; }
 }
 
 </style>
@@ -2419,6 +2428,24 @@ function setupPrint() {
   if (!btn) return;
   btn.addEventListener("click", () => {
     const activePanel = document.querySelector(".tab-panel.active");
+
+    /* Sur un onglet de facturation (BMW/Ford/tout futur fournisseur) sous
+       contrat réel signé, "Imprimer" sert à imprimer LA FACTURE — pas le
+       tableau de suivi. On délègue donc directement au même flux que le
+       bouton "Facture consolidée", au lieu d'imprimer la grille de données.
+       Sur un onglet sans contrat réel (simulation) ou hors facturation
+       (Suivi, Tableau de bord), le comportement précédent (tableau de
+       suivi) reste inchangé — il n'y a rien à facturer là. */
+    const concession = activePanel && activePanel.dataset.concession;
+    const contract    = concession && state.contracts && state.contracts[concession];
+    if (concession && contract && contract.locked === true) {
+      const invoiceBtn = document.querySelector(`.consolidated-invoice-btn[data-concession="${concession}"]`);
+      if (invoiceBtn && !invoiceBtn.classList.contains("hidden")) {
+        invoiceBtn.click();
+        return;
+      }
+    }
+
     const label = (activePanel && PANEL_PRINT_LABEL[activePanel.id]) || "Suivi flotte";
     const header = document.getElementById("print-header");
     if (header) {
@@ -2666,21 +2693,22 @@ async function renderConsolidatedInvoice({ numero, emission, echeance, vehicules
   if (!contract) throw new Error("Concession inconnue ou contrat non transmis par le Worker.");
   const info       = CONCESSION_LEGAL_INFO[concession] || { nom: concession, adresseLigne1: "", adresseLigne2: "", identifiants: "" };
   const rate       = contract.rate; // source correcte : transmise par le Worker
+
+  /* Ligne unique agrégée façon matrice de facturation standard
+     (Description / Qté / Prix unitaire / TVA / Total HT) — le "Prix
+     unitaire" est ici une moyenne (Total HT ÷ Qté) puisque la commission
+     réelle varie par véhicule (valeur de vente × taux). Le détail exact
+     par véhicule (immatriculation + montant) est donné juste après le
+     tableau, en supplément, pour la traçabilité — voir "rowsImmat". */
+  const qte = vehicules.length;
   let totalHT = 0;
-  const rows = vehicules.map((v, i) => {
+  const rowsImmat = vehicules.map(v => {
     const valeur     = Number(v.valeur_vente_ht) || 0;
     const commission = +(valeur * rate / 100).toFixed(2);
     totalHT += commission;
-    return `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${esc(v.client)}</td>
-        <td>${esc(v.immat) || "—"}</td>
-        <td class="num">${fmtEUR(valeur)}</td>
-        <td class="num">${rate.toFixed(2)} %</td>
-        <td class="num">${fmtEUR(commission)}</td>
-      </tr>`;
+    return `<tr><td>${esc(v.immat) || "—"}</td><td>${esc(v.client)}</td><td class="num">${fmtEUR(commission)}</td></tr>`;
   }).join("");
+  const prixUnitaireMoyen = qte > 0 ? totalHT / qte : 0;
 
   document.getElementById("invoice-print-area").innerHTML = `
     <div class="invoice-doc">
@@ -2700,7 +2728,7 @@ async function renderConsolidatedInvoice({ numero, emission, echeance, vehicules
         <div>
           <strong>ZEEV CARS</strong>
           47 rue Vivienne<br>75002 Paris, FR<br>
-          SASU au capital de 50 € — RCS Paris n°105 926 158<br>
+          zeev_cars@yahoo.com<br>
           SIRET 105 926 158 00012
         </div>
         <div>
@@ -2713,12 +2741,29 @@ async function renderConsolidatedInvoice({ numero, emission, echeance, vehicules
       <table class="invoice-items">
         <thead>
           <tr>
-            <th>N°</th><th>Client</th><th>Immatriculation</th>
-            <th class="num">Valeur de vente HT</th><th class="num">Taux</th><th class="num">Commission HT</th>
+            <th>Description</th><th class="num">Qté</th><th class="num">Prix unitaire</th>
+            <th class="num">TVA (%)</th><th class="num">Total HT</th>
           </tr>
         </thead>
-        <tbody>${rows}</tbody>
+        <tbody>
+          <tr>
+            <td>Commissions d'apporteur d'affaires</td>
+            <td class="num">${qte}</td>
+            <td class="num">${fmtEUR(prixUnitaireMoyen)}</td>
+            <td class="num">0 %</td>
+            <td class="num">${fmtEUR(totalHT)}</td>
+          </tr>
+        </tbody>
       </table>
+
+      <div class="invoice-immat-block">
+        <div class="invoice-immat-title">Véhicules concernés (immatriculations)</div>
+        <table class="invoice-immat-table">
+          <thead><tr><th>Immatriculation</th><th>Client</th><th class="num">Commission HT</th></tr></thead>
+          <tbody>${rowsImmat}</tbody>
+        </table>
+      </div>
+
       <table class="invoice-totals-table">
         <tr><td>Total HT</td><td>${fmtEUR(totalHT)}</td></tr>
         <tr><td>Montant total de la TVA</td><td>0,00 €</td></tr>
