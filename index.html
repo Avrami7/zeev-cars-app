@@ -168,6 +168,41 @@ body::before {
 }
 *::-webkit-scrollbar-thumb:hover { background: var(--tx3); }
 
+/* Barre de défilement du tableau — volontairement plus épaisse et plus
+   contrastée que la barre globale fine, pour rester bien visible même sur
+   un tableau très large.
+   IMPORTANT : la règle globale `* { scrollbar-width: thin; ... }` ci-dessus
+   s'applique aussi à .table-wrap/.table-scroll-top et, sur les navigateurs
+   qui priorisent scrollbar-width/scrollbar-color (Firefox, Chrome récent),
+   elle écrasait silencieusement tout le style "épais" pensé ici via les
+   pseudo-éléments ::-webkit-scrollbar. On surcharge donc explicitement les
+   deux propriétés standard ici, en plus des pseudo-éléments. */
+.table-wrap, .table-scroll-top {
+  scrollbar-width: auto;
+  scrollbar-color: var(--ac) var(--sur2);
+}
+.table-wrap::-webkit-scrollbar { height: 16px; }
+.table-wrap::-webkit-scrollbar-track { background: var(--sur2); }
+.table-wrap::-webkit-scrollbar-thumb {
+  background: var(--ac); border-radius: 999px; border: 3px solid var(--sur2);
+}
+.table-wrap::-webkit-scrollbar-thumb:hover { background: var(--ac2); }
+
+/* Barre de défilement jumelle, positionnée AU-DESSUS du tableau, synchronisée
+   avec celle du bas (voir setupTopScrollbar) — évite de devoir descendre
+   jusqu'en bas d'un long tableau pour pouvoir défiler horizontalement. */
+.table-scroll-top {
+  overflow-x: auto; overflow-y: hidden;
+  height: 18px; margin-bottom: 8px;
+}
+.table-scroll-top::-webkit-scrollbar { height: 18px; }
+.table-scroll-top::-webkit-scrollbar-track { background: var(--sur2); border-radius: var(--r); }
+.table-scroll-top::-webkit-scrollbar-thumb {
+  background: var(--ac); border-radius: 999px; border: 3px solid var(--sur2);
+}
+.table-scroll-top::-webkit-scrollbar-thumb:hover { background: var(--ac2); }
+.table-scroll-top-spacer { height: 1px; }
+
 /* =====================================================================
    ÉCRAN DE CONNEXION
    ===================================================================== */
@@ -1269,7 +1304,8 @@ td.num { text-align: right; font-family: var(--mono); }
 
       <div class="kpi-row" id="kpi-bmw" role="region" aria-label="Indicateurs BMW CH. Pozzi"></div>
 
-      <div class="table-wrap">
+      <div class="table-scroll-top" id="scroll-top-bmw"><div class="table-scroll-top-spacer"></div></div>
+      <div class="table-wrap" id="table-wrap-bmw">
         <table class="data-table" id="table-bmw" aria-label="Véhicules BMW CH. Pozzi"></table>
       </div>
     </section>
@@ -1323,7 +1359,8 @@ td.num { text-align: right; font-family: var(--mono); }
 
       <div class="kpi-row" id="kpi-ford" role="region" aria-label="Indicateurs Ford Villeneuve"></div>
 
-      <div class="table-wrap">
+      <div class="table-scroll-top" id="scroll-top-ford"><div class="table-scroll-top-spacer"></div></div>
+      <div class="table-wrap" id="table-wrap-ford">
         <table class="data-table" id="table-ford" aria-label="Véhicules Ford Villeneuve"></table>
       </div>
     </section>
@@ -1334,7 +1371,8 @@ td.num { text-align: right; font-family: var(--mono); }
         Vue informative de gestion de flotte — aucun calcul de commission ici. Voir les onglets de facturation dédiés.
       </div>
       <div class="kpi-row" id="kpi-suivi" role="region" aria-label="Indicateurs flotte complète"></div>
-      <div class="table-wrap">
+      <div class="table-scroll-top" id="scroll-top-suivi"><div class="table-scroll-top-spacer"></div></div>
+      <div class="table-wrap" id="table-wrap-suivi">
         <table class="data-table" id="table-suivi" aria-label="Tous les véhicules"></table>
       </div>
     </section>
@@ -2272,6 +2310,7 @@ async function bootApp() {
   refreshOwnerUI();
   await reloadData();
   setupTabs();
+  setupTwinScrollbars();
   setupSave();
   setupReload();
   setupPrint();
@@ -2697,6 +2736,47 @@ async function renderConsolidatedInvoice({ numero, emission, echeance, vehicules
 
   document.body.classList.add("printing-invoice");
   window.print();
+}
+
+/* =====================================================================
+   BARRES DE DÉFILEMENT JUMELLES — demande explicite : une barre plus épaisse
+   et visible, dupliquée en haut du tableau (pas seulement en bas), pour ne
+   jamais avoir à descendre tout en bas d'un tableau long avant de pouvoir
+   défiler horizontalement. Les deux barres restent synchronisées entre elles
+   et s'ajustent automatiquement à la largeur réelle du tableau (même quand
+   des colonnes sont ajoutées/retirées ou redimensionnées à la main).
+   ===================================================================== */
+function setupTwinScrollbar(topId, wrapId) {
+  const top  = document.getElementById(topId);
+  const wrap = document.getElementById(wrapId);
+  if (!top || !wrap) return;
+  const spacer = top.querySelector(".table-scroll-top-spacer");
+  const table  = wrap.querySelector("table");
+  if (!spacer || !table) return;
+
+  let syncing = false;
+  function syncWidth() {
+    spacer.style.width = table.scrollWidth + "px";
+  }
+  function fromTop()  { if (syncing) return; syncing = true; wrap.scrollLeft = top.scrollLeft;  syncing = false; }
+  function fromWrap() { if (syncing) return; syncing = true; top.scrollLeft  = wrap.scrollLeft; syncing = false; }
+
+  top.addEventListener("scroll", fromTop);
+  wrap.addEventListener("scroll", fromWrap);
+
+  /* Le tableau est entièrement régénéré (innerHTML) à chaque rendu — sa
+     largeur réelle peut donc changer à tout moment (colonnes redimensionnées,
+     restriction d'accès qui retire des colonnes, etc.). ResizeObserver
+     réagit à ces changements sans qu'on ait besoin d'appeler quoi que ce
+     soit manuellement après chaque renderAll(). */
+  new ResizeObserver(syncWidth).observe(table);
+  syncWidth();
+}
+
+function setupTwinScrollbars() {
+  setupTwinScrollbar("scroll-top-bmw",   "table-wrap-bmw");
+  setupTwinScrollbar("scroll-top-ford",  "table-wrap-ford");
+  setupTwinScrollbar("scroll-top-suivi", "table-wrap-suivi");
 }
 
 function setupTabs() {
