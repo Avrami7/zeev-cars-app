@@ -846,6 +846,88 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 .kpi-chart-val  { font-size: 8.5px; color: var(--tx3); font-family: var(--mono); white-space: nowrap; }
 .kpi-chart-label{ font-size: 8.5px; color: var(--tx3); margin-top: 2px; text-transform: uppercase; }
 
+/* ═══════════════════════════════════════════════════════════════
+   DASHBOARD EXÉCUTIF KPI CLIENT — Modal plein écran
+   ═══════════════════════════════════════════════════════════════ */
+#kpi-client-dialog {
+  width: min(98vw, 1300px); max-height: 92vh; overflow-y: auto;
+  background: var(--bg2); border: 1px solid var(--brd2); border-radius: 18px;
+  box-shadow: var(--sh-3); padding: 0; color: var(--tx);
+  scrollbar-width: thin; scrollbar-color: var(--ac) var(--sur2);
+}
+#kpi-client-dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
+.kpi-client-wrap { padding: 28px 32px 32px; }
+.kpi-client-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--brd);
+}
+.kpi-client-tag {
+  font-size: 10px; font-weight: 700; color: var(--ac); letter-spacing: .1em;
+  text-transform: uppercase; margin-bottom: 6px;
+}
+.kpi-client-header h2 { font-size: 20px; font-weight: 800; margin: 0; letter-spacing: -.01em; }
+
+/* Cartes KPI globales */
+.exec-kpi-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px; margin-bottom: 28px;
+}
+.exec-kpi-card {
+  background: var(--sur); border: 1px solid var(--brd2); border-radius: 12px;
+  padding: 14px 16px; text-align: center;
+}
+.exec-kpi-card .ek-label { font-size: 9.5px; color: var(--tx3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+.exec-kpi-card .ek-value { font-size: 20px; font-weight: 800; font-family: var(--mono); color: var(--tx); line-height: 1; }
+.exec-kpi-card .ek-sub { font-size: 9px; color: var(--tx3); margin-top: 4px; }
+.exec-kpi-card.accent { background: linear-gradient(135deg, var(--ac) 0%, var(--ac2) 100%); border-color: transparent; }
+.exec-kpi-card.accent .ek-label, .exec-kpi-card.accent .ek-value, .exec-kpi-card.accent .ek-sub { color: #fff; }
+
+/* Sections du dashboard */
+.exec-section { margin-bottom: 28px; }
+.exec-section-title {
+  font-size: 13px; font-weight: 800; margin-bottom: 14px;
+  padding: 6px 0 6px 12px; border-left: 4px solid var(--ac);
+  text-transform: uppercase; letter-spacing: .03em;
+}
+.exec-section-title .exec-section-sub { font-size: 10px; font-weight: 400; color: var(--tx3); text-transform: none; letter-spacing: 0; margin-left: 8px; }
+
+/* Tableau des catégories */
+.exec-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.exec-table th {
+  text-align: left; font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--tx3); padding: 8px 10px;
+  border-bottom: 1px solid var(--brd); white-space: nowrap;
+}
+.exec-table th.r { text-align: right; }
+.exec-table td { padding: 10px 10px; border-bottom: 1px solid var(--brd2); }
+.exec-table td.r { text-align: right; font-family: var(--mono); font-size: 11px; }
+.exec-table tr.subtotal td { background: var(--sur3); font-weight: 700; }
+.exec-table tr.total-row td { background: var(--ac); color: #fff; font-weight: 800; font-size: 12px; }
+.exec-table tr.total-row td.r { font-family: var(--mono); }
+
+/* Barre de progression inline */
+.exec-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.exec-bar-bg { flex: 1; height: 6px; background: var(--sur3); border-radius: 99px; overflow: hidden; min-width: 60px; }
+.exec-bar { height: 100%; border-radius: 99px; background: var(--ac); }
+.exec-bar.green { background: var(--gr); }
+.exec-bar.amber { background: #c98a13; }
+.exec-bar.red { background: var(--rd); }
+.exec-bar-pct { font-size: 10px; font-family: var(--mono); color: var(--tx3); white-space: nowrap; }
+
+/* Mini camemberts CSS */
+.exec-pie-row { display: flex; gap: 24px; flex-wrap: wrap; margin: 14px 0; }
+.exec-pie-item { display: flex; align-items: center; gap: 8px; }
+.exec-pie-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.exec-pie-label { font-size: 10.5px; color: var(--tx2); }
+.exec-pie-val { font-size: 10.5px; font-family: var(--mono); font-weight: 600; }
+
+/* Synthèse commerciale */
+.exec-commercial { background: var(--sur); border: 1px solid var(--brd2); border-radius: 12px; padding: 18px 20px; }
+.exec-commercial-title { font-size: 11px; font-weight: 700; margin-bottom: 12px; color: var(--ac2); text-transform: uppercase; letter-spacing: .05em; }
+.exec-commercial-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
+.exec-commercial-item { font-size: 10.5px; color: var(--tx2); padding: 4px 0; border-bottom: 1px dashed var(--brd); }
+.exec-commercial-item b { color: var(--tx); }
+
 .chart-range-toggle { display: flex; gap: 4px; background: var(--sur3); border-radius: 8px; padding: 3px; }
 .chart-range-btn {
   border: none; background: transparent; color: var(--tx3);
@@ -1330,6 +1412,10 @@ td.num { text-align: right; font-family: var(--mono); }
           <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm6.293-2.707a1 1 0 001.414 0l4-4a1 1 0 10-1.414-1.414L11 11.586V3a1 1 0 10-2 0v8.586L6.707 9.293a1 1 0 10-1.414 1.414l4 4z" clip-rule="evenodd"/></svg>
           Facture consolidée
         </button>
+        <button type="button" class="tb-btn kpi-client-btn" data-concession="BMW_POZZI">
+          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
+          Analyse client
+        </button>
         <button type="button" class="tb-btn add-vehicle-btn" data-concession="BMW_POZZI">
           <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/></svg>
           Ajouter un véhicule
@@ -1385,6 +1471,10 @@ td.num { text-align: right; font-family: var(--mono); }
           <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm6.293-2.707a1 1 0 001.414 0l4-4a1 1 0 10-1.414-1.414L11 11.586V3a1 1 0 10-2 0v8.586L6.707 9.293a1 1 0 10-1.414 1.414l4 4z" clip-rule="evenodd"/></svg>
           Facture consolidée
         </button>
+        <button type="button" class="tb-btn kpi-client-btn" data-concession="FORD_VILLENEUVE">
+          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
+          Analyse client
+        </button>
         <button type="button" class="tb-btn add-vehicle-btn" data-concession="FORD_VILLENEUVE">
           <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/></svg>
           Ajouter un véhicule
@@ -1399,7 +1489,21 @@ td.num { text-align: right; font-family: var(--mono); }
       </div>
     </section>
 
-    <!-- ============== PANEL SUIVI ============== -->
+    <!-- ============== MODAL KPI CLIENT ============== -->
+    <dialog id="kpi-client-dialog" aria-labelledby="kpi-client-title">
+      <div class="kpi-client-wrap">
+        <div class="kpi-client-header">
+          <div>
+            <div class="kpi-client-tag" id="kpi-client-tag">ANALYSE PARC CLIENT</div>
+            <h2 id="kpi-client-title">Tableau de bord exécutif</h2>
+          </div>
+          <button type="button" class="modal-close-btn" id="kpi-client-close" aria-label="Fermer">✕</button>
+        </div>
+        <div id="kpi-client-body"></div>
+      </div>
+    </dialog>
+
+
     <section id="panel-suivi" class="tab-panel" role="tabpanel" aria-labelledby="tab-suivi" tabindex="0" hidden>
       <div class="bandeau bandeau-info" role="note">
         Vue informative de gestion de flotte — aucun calcul de commission ici. Voir les onglets de facturation dédiés.
@@ -2359,6 +2463,7 @@ async function bootApp() {
   setupImport();
   setupAddVehicle();
   setupConsolidatedInvoice();
+  setupKpiClientButtons();
   setupAutoSave();
 }
 
@@ -3168,8 +3273,237 @@ function renderKpiChart(vehicules, range) {
   });
 })();
 
-/* Visibilité restreinte : collaborateur créé avec scope "LIVRAISON_ONLY".
-   Le compte système (Viktorija) et tout collaborateur "FULL" voient tout. */
+/* =====================================================================
+   DASHBOARD EXÉCUTIF KPI CLIENT
+   Classification automatique des véhicules par famille (Utilitaires /
+   VP) et sous-catégories, puis génération d'un rapport de négociation
+   commerciale complet.
+   ===================================================================== */
+
+/* Logique de classification : détecte le gabarit dans le libellé du
+   modèle (L1H1, L2H1, L3H2…) → Utilitaire ; sinon → VP. */
+const GABARIT_CAT = {
+  'L1':'Petit utilitaire','L1H1':'Petit utilitaire','L1H2':'Petit utilitaire',
+  'L2H1':'Moyen utilitaire','L2H2':'Moyen utilitaire',
+  'L2H3':'Grand utilitaire','L3H2':'Grand utilitaire','L3H3':'Grand utilitaire',
+  'L4H2':'Grand utilitaire','L4H3':'Grand utilitaire','L4':'Grand utilitaire',
+};
+const VP_CAT_RULES = [
+  { pattern: /\biX\d|X\d|SUV|Touareg|Tiguan|TRANSIT\sCONNECT\b/i, cat: 'SUV' },
+  { pattern: /\bi[4-7]\b|Série\s[35]|Passat|Arteon|Golf\sSedan/i, cat: 'Berline' },
+  { pattern: /\bGolf\b|\bPolo\b|Compact/i, cat: 'Compacte' },
+  { pattern: /\bCoupé|Coupe/i, cat: 'Coupé' },
+  { pattern: /\bBreak|Touring|SW\b/i, cat: 'Break' },
+  { pattern: /\bMonospace|Van|People/i, cat: 'Monospace' },
+  { pattern: /\bCitadine|Up\b|Fiesta\b/i, cat: 'Citadine' },
+];
+
+function classifyVehicle(modele) {
+  if (!modele) return { famille: 'VP', cat: 'Autres' };
+  const m = modele.replace(/\s+/g, '').toUpperCase();
+  // Cherche un gabarit utilitaire dans le libellé
+  for (const [g, cat] of Object.entries(GABARIT_CAT).sort((a,b) => b[0].length-a[0].length)) {
+    if (m.includes(g.replace('H','H').toUpperCase())) return { famille: 'Utilitaire', cat };
+  }
+  // Cas avec espace (ex: "L3 H2")
+  const withSpace = modele.match(/\b(L[1-4])\s+H([1-4])\b/i);
+  if (withSpace) {
+    const code = (withSpace[1] + 'H' + withSpace[2]).toUpperCase();
+    return { famille: 'Utilitaire', cat: GABARIT_CAT[code] || 'Grand utilitaire' };
+  }
+  // Skoda ou hors gamme
+  if (/skoda|hors gamme|inconnu/i.test(modele)) return { famille: 'VP', cat: 'Autres' };
+  // VP — sous-catégorie
+  for (const rule of VP_CAT_RULES) {
+    if (rule.pattern.test(modele)) return { famille: 'VP', cat: rule.cat };
+  }
+  return { famille: 'VP', cat: 'Autres' };
+}
+
+function buildKpiClientData(vehicules) {
+  const vWithVal = vehicules.filter(v => v.valeur_vente_ht);
+  const total    = vehicules.length;
+  const totalVal = vehicules.reduce((s, v) => s + (Number(v.valeur_vente_ht) || 0), 0);
+  const moyVal   = vWithVal.length ? totalVal / vWithVal.length : 0;
+
+  const families = {};
+  vehicules.forEach(v => {
+    const { famille, cat } = classifyVehicle(v.modele);
+    if (!families[famille]) families[famille] = {};
+    if (!families[famille][cat]) families[famille][cat] = { count: 0, total: 0, items: [] };
+    families[famille][cat].count++;
+    families[famille][cat].total += Number(v.valeur_vente_ht) || 0;
+    families[famille][cat].items.push(v);
+  });
+
+  return { total, totalVal, moyVal, families };
+}
+
+function fmtPct(v, total) {
+  if (!total) return '—';
+  return (v / total * 100).toFixed(1) + ' %';
+}
+
+function execBar(val, max, cls = '') {
+  const pct = max > 0 ? Math.max(2, val / max * 100) : 2;
+  return `<div class="exec-bar-wrap">
+    <div class="exec-bar-bg"><div class="exec-bar ${cls}" style="width:${pct}%"></div></div>
+    <span class="exec-bar-pct">${fmtPct(val, max)}</span>
+  </div>`;
+}
+
+function renderKpiClientDialog(concession) {
+  const veh      = getVehicules(concession);
+  const label    = CONCESSION_LABELS[concession] || concession;
+  const info     = CONCESSION_LEGAL_INFO[concession] || {};
+  const { total, totalVal, moyVal, families } = buildKpiClientData(veh);
+
+  document.getElementById('kpi-client-tag').textContent = 'ANALYSE PARC — ' + label.toUpperCase();
+  document.getElementById('kpi-client-title').textContent = label + ' — Tableau de bord exécutif';
+
+  // ── KPI globaux ──────────────────────────────────────────────
+  const familyList = Object.keys(families);
+  const famSummary = familyList.map(f => {
+    const cats = Object.values(families[f]);
+    const cnt = cats.reduce((s,c) => s+c.count, 0);
+    const val = cats.reduce((s,c) => s+c.total, 0);
+    return `${f} (${cnt} véhicules — ${fmtEUR(val)})`;
+  }).join(' · ');
+
+  const topCat = Object.entries(families).flatMap(([f, cats]) =>
+    Object.entries(cats).map(([cat, d]) => ({ f, cat, ...d }))
+  ).sort((a,b) => b.total - a.total).slice(0, 3);
+
+  let html = `
+    <div class="exec-kpi-grid">
+      <div class="exec-kpi-card accent">
+        <div class="ek-label">Véhicules au parc</div>
+        <div class="ek-value">${total}</div>
+        <div class="ek-sub">${familyList.join(' + ')}</div>
+      </div>
+      <div class="exec-kpi-card accent">
+        <div class="ek-label">Valeur totale du parc HT</div>
+        <div class="ek-value" style="font-size:16px;">${fmtEUR(totalVal)}</div>
+        <div class="ek-sub">hors taxes, hors assurances</div>
+      </div>
+      <div class="exec-kpi-card">
+        <div class="ek-label">Valeur moyenne / véhicule</div>
+        <div class="ek-value" style="font-size:16px;">${fmtEUR(moyVal)}</div>
+      </div>
+      ${familyList.map(f => {
+        const cats = Object.values(families[f]);
+        const cnt = cats.reduce((s,c) => s+c.count, 0);
+        const val = cats.reduce((s,c) => s+c.total, 0);
+        return `<div class="exec-kpi-card">
+          <div class="ek-label">${f}</div>
+          <div class="ek-value">${cnt}</div>
+          <div class="ek-sub">${fmtEUR(val)} — ${fmtPct(cnt, total)} du parc</div>
+        </div>`;
+      }).join('')}
+      <div class="exec-kpi-card">
+        <div class="ek-label">Top catégorie</div>
+        <div class="ek-value" style="font-size:13px; line-height:1.2;">${topCat[0]?.cat || '—'}</div>
+        <div class="ek-sub">${topCat[0] ? fmtEUR(topCat[0].total) : ''}</div>
+      </div>
+    </div>`;
+
+  // ── Sections par famille ──────────────────────────────────────
+  const FAM_COLORS = { 'Utilitaire': { base: '', bar: '' }, 'VP': { base: 'green', bar: 'green' } };
+  const MAX_VAL    = Math.max(...Object.values(families).flatMap(cats => Object.values(cats).map(c => c.total)));
+
+  for (const [famille, cats] of Object.entries(families)) {
+    const totalFamCnt = Object.values(cats).reduce((s,c) => s+c.count, 0);
+    const totalFamVal = Object.values(cats).reduce((s,c) => s+c.total, 0);
+    const barCls      = famille === 'VP' ? 'green' : '';
+    const famLabel    = famille === 'Utilitaire'
+      ? 'Section Utilitaires <span class="exec-section-sub">véhicules de charge et transport</span>'
+      : 'Section Véhicules Particuliers (VP) <span class="exec-section-sub">véhicules de fonction et direction</span>';
+
+    html += `<div class="exec-section">
+      <div class="exec-section-title">${famLabel}</div>
+      <table class="exec-table">
+        <thead><tr>
+          <th>Catégorie</th><th class="r">Véhicules</th><th class="r">Valeur totale HT</th>
+          <th class="r">Valeur moy./véh.</th><th>% parc</th><th>% valeur</th>
+        </tr></thead>
+        <tbody>`;
+
+    const sortedCats = Object.entries(cats).sort((a,b) => b[1].total - a[1].total);
+    for (const [cat, d] of sortedCats) {
+      const moy = d.count ? d.total / d.count : 0;
+      html += `<tr>
+        <td><strong>${cat}</strong></td>
+        <td class="r">${d.count}</td>
+        <td class="r">${fmtEUR(d.total)}</td>
+        <td class="r">${fmtEUR(moy)}</td>
+        <td>${execBar(d.count, total, barCls)}</td>
+        <td>${execBar(d.total, totalVal, barCls)}</td>
+      </tr>`;
+    }
+    html += `</tbody>
+      <tfoot>
+        <tr class="subtotal">
+          <td>Total ${famille}</td>
+          <td class="r">${totalFamCnt}</td>
+          <td class="r">${fmtEUR(totalFamVal)}</td>
+          <td class="r">${fmtEUR(totalFamCnt ? totalFamVal/totalFamCnt : 0)}</td>
+          <td>${execBar(totalFamCnt, total, barCls)}</td>
+          <td>${execBar(totalFamVal, totalVal, barCls)}</td>
+        </tr>
+      </tfoot>
+      </table></div>`;
+  }
+
+  // ── Synthèse commerciale ──────────────────────────────────────
+  const topCats3 = Object.entries(families)
+    .flatMap(([f, cats]) => Object.entries(cats).map(([cat, d]) => ({ f, cat, ...d })))
+    .sort((a,b) => b.total - a.total);
+
+  html += `<div class="exec-section">
+    <div class="exec-section-title">Synthèse commerciale
+      <span class="exec-section-sub">support de négociation — direction achats / gestionnaire de flotte</span>
+    </div>
+    <div class="exec-commercial">
+      <div class="exec-commercial-title">📊 Potentiel commercial identifié</div>
+      <div class="exec-commercial-grid">
+        <div class="exec-commercial-item">Nom du client <b>${esc(info.nom || label)}</b></div>
+        <div class="exec-commercial-item">Volume total du parc <b>${total} véhicules</b></div>
+        <div class="exec-commercial-item">Valeur financière totale <b>${fmtEUR(totalVal)}</b></div>
+        <div class="exec-commercial-item">Valeur moyenne par véhicule <b>${fmtEUR(moyVal)}</b></div>
+        ${familyList.map(f => {
+          const cnt = Object.values(families[f]).reduce((s,c) => s+c.count, 0);
+          const val = Object.values(families[f]).reduce((s,c) => s+c.total, 0);
+          return `<div class="exec-commercial-item">${f} <b>${cnt} véh. — ${fmtEUR(val)} (${fmtPct(cnt,total)} du parc)</b></div>`;
+        }).join('')}
+        <div class="exec-commercial-item">Catégories identifiées <b>${topCats3.length} familles distinctes</b></div>
+        <div class="exec-commercial-item">Catégorie n°1 <b>${topCats3[0]?.cat || '—'} (${topCats3[0]?.count || 0} véh. — ${fmtEUR(topCats3[0]?.total || 0)})</b></div>
+        ${topCats3[1] ? `<div class="exec-commercial-item">Catégorie n°2 <b>${topCats3[1].cat} (${topCats3[1].count} véh. — ${fmtEUR(topCats3[1].total)})</b></div>` : ''}
+        ${topCats3[2] ? `<div class="exec-commercial-item">Catégorie n°3 <b>${topCats3[2].cat} (${topCats3[2].count} véh. — ${fmtEUR(topCats3[2].total)})</b></div>` : ''}
+        <div class="exec-commercial-item">Potentiel de renouvellement <b>Annuel — flotte de ${total} véhicules gérés</b></div>
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('kpi-client-body').innerHTML = html;
+  document.getElementById('kpi-client-dialog').showModal();
+}
+
+function setupKpiClientButtons() {
+  document.querySelectorAll('.kpi-client-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (isRestricted()) { toast('Accès restreint — vue KPI non disponible en mode LIVRAISON_ONLY.', 'error'); return; }
+      renderKpiClientDialog(btn.dataset.concession);
+    });
+  });
+  document.getElementById('kpi-client-close').addEventListener('click', () => {
+    document.getElementById('kpi-client-dialog').close();
+  });
+  document.getElementById('kpi-client-dialog').addEventListener('click', e => {
+    if (e.target === document.getElementById('kpi-client-dialog')) document.getElementById('kpi-client-dialog').close();
+  });
+}
+
+
 function isRestricted() {
   return !!(state.user && state.user.scope === "LIVRAISON_ONLY");
 }
