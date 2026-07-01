@@ -851,7 +851,7 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
    ═══════════════════════════════════════════════════════════════ */
 #kpi-client-dialog {
   width: min(98vw, 1300px); max-height: 92vh; overflow-y: auto;
-  background: var(--bg2); border: 1px solid var(--brd2); border-radius: 18px;
+  background: var(--sur); border: 1px solid var(--brd2); border-radius: 18px;
   box-shadow: var(--sh-3); padding: 0; color: var(--tx);
   scrollbar-width: thin; scrollbar-color: var(--ac) var(--sur2);
 }
@@ -865,7 +865,7 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
   font-size: 10px; font-weight: 700; color: var(--ac); letter-spacing: .1em;
   text-transform: uppercase; margin-bottom: 6px;
 }
-.kpi-client-header h2 { font-size: 20px; font-weight: 800; margin: 0; letter-spacing: -.01em; }
+.kpi-client-header h2 { font-size: 20px; font-weight: 800; margin: 0; letter-spacing: -.01em; color: var(--tx); }
 
 /* Cartes KPI globales */
 .exec-kpi-grid {
@@ -873,14 +873,16 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
   gap: 12px; margin-bottom: 28px;
 }
 .exec-kpi-card {
-  background: var(--sur); border: 1px solid var(--brd2); border-radius: 12px;
+  background: var(--sur3); border: 1px solid var(--brd2); border-radius: 12px;
   padding: 14px 16px; text-align: center;
 }
-.exec-kpi-card .ek-label { font-size: 9.5px; color: var(--tx3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+.exec-kpi-card .ek-label { font-size: 9.5px; color: var(--tx2); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; font-weight: 600; }
 .exec-kpi-card .ek-value { font-size: 20px; font-weight: 800; font-family: var(--mono); color: var(--tx); line-height: 1; }
 .exec-kpi-card .ek-sub { font-size: 9px; color: var(--tx3); margin-top: 4px; }
 .exec-kpi-card.accent { background: linear-gradient(135deg, var(--ac) 0%, var(--ac2) 100%); border-color: transparent; }
-.exec-kpi-card.accent .ek-label, .exec-kpi-card.accent .ek-value, .exec-kpi-card.accent .ek-sub { color: #fff; }
+.exec-kpi-card.accent .ek-label { color: rgba(255,255,255,.85); }
+.exec-kpi-card.accent .ek-value { color: #fff; }
+.exec-kpi-card.accent .ek-sub { color: rgba(255,255,255,.7); }
 
 /* Sections du dashboard */
 .exec-section { margin-bottom: 28px; }
@@ -899,11 +901,11 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
   border-bottom: 1px solid var(--brd); white-space: nowrap;
 }
 .exec-table th.r { text-align: right; }
-.exec-table td { padding: 10px 10px; border-bottom: 1px solid var(--brd2); }
-.exec-table td.r { text-align: right; font-family: var(--mono); font-size: 11px; }
-.exec-table tr.subtotal td { background: var(--sur3); font-weight: 700; }
+.exec-table td { padding: 10px 10px; border-bottom: 1px solid var(--brd2); color: var(--tx); }
+.exec-table td.r { text-align: right; font-family: var(--mono); font-size: 11px; color: var(--tx); }
+.exec-table tr.subtotal td { background: var(--sur3); font-weight: 700; color: var(--tx); }
 .exec-table tr.total-row td { background: var(--ac); color: #fff; font-weight: 800; font-size: 12px; }
-.exec-table tr.total-row td.r { font-family: var(--mono); }
+.exec-table tr.total-row td.r { font-family: var(--mono); color: #fff; }
 
 /* Barre de progression inline */
 .exec-bar-wrap { display: flex; align-items: center; gap: 8px; }
@@ -922,10 +924,10 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 .exec-pie-val { font-size: 10.5px; font-family: var(--mono); font-weight: 600; }
 
 /* Synthèse commerciale */
-.exec-commercial { background: var(--sur); border: 1px solid var(--brd2); border-radius: 12px; padding: 18px 20px; }
+.exec-commercial { background: var(--sur2); border: 1px solid var(--brd2); border-radius: 12px; padding: 18px 20px; }
 .exec-commercial-title { font-size: 11px; font-weight: 700; margin-bottom: 12px; color: var(--ac2); text-transform: uppercase; letter-spacing: .05em; }
 .exec-commercial-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
-.exec-commercial-item { font-size: 10.5px; color: var(--tx2); padding: 4px 0; border-bottom: 1px dashed var(--brd); }
+.exec-commercial-item { font-size: 10.5px; color: var(--tx3); padding: 4px 0; border-bottom: 1px dashed var(--brd); }
 .exec-commercial-item b { color: var(--tx); }
 
 .chart-range-toggle { display: flex; gap: 4px; background: var(--sur3); border-radius: 8px; padding: 3px; }
