@@ -3066,6 +3066,10 @@ function renderAll() {
   renderKpiDashboard();
   document.getElementById("footer-info").textContent =
     `${state.data.vehicules.length} véhicules — dernière synchronisation locale : ${nowStamp()}`;
+  /* Réinjection systématique des poignées de redimensionnement après chaque
+     rendu — les tableaux étant reconstruits entièrement via innerHTML, les
+     poignées précédemment injectées disparaissent et doivent être remises. */
+  if (typeof window.refreshColumnResizers === 'function') window.refreshColumnResizers();
 }
 
 function getVehicules(concession) {
@@ -4009,20 +4013,27 @@ window.addEventListener("beforeunload", (e) => {
     document.removeEventListener('mouseup', onResizeEnd);
   }
 
-  // Les tableaux sont entièrement régénérés (innerHTML) à chaque rendu —
-  // on observe leur contenu pour réinjecter les poignées automatiquement,
-  // sans jamais modifier les fonctions de rendu existantes.
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach(m => {
-      const table = m.target.closest ? m.target.closest('table') : null;
-      const thead = table ? table.querySelector('thead tr') : null;
+  // Les tableaux sont entièrement régénérés (innerHTML) à chaque renderAll() —
+  // on réinjecte les poignées immédiatement après chaque mutation de l'en-tête,
+  // ET on exporte une fonction globale pour que renderAll() puisse les réinjecter
+  // de façon synchrone, sans délai.
+  const observer = new MutationObserver(() => {
+    document.querySelectorAll('table.data-table').forEach(t => {
+      const thead = t.querySelector('thead tr');
       if (thead) injectResizers(thead);
     });
   });
   document.querySelectorAll('table.data-table').forEach(t => {
     observer.observe(t, { childList: true, subtree: true });
-    injectResizers(t.querySelector('thead tr'));
   });
+
+  // Fonction globale appelée explicitement après chaque rendu
+  window.refreshColumnResizers = function() {
+    document.querySelectorAll('table.data-table').forEach(t => {
+      const thead = t.querySelector('thead tr');
+      if (thead) injectResizers(thead);
+    });
+  };
 })();
 
 /* =====================================================================
