@@ -965,23 +965,23 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
   box-shadow: var(--sh-1);
 }
 table.data-table {
-  border-collapse: collapse; width: 100%;
-  font-size: 11.5px; min-width: 1450px;
-  table-layout: auto;
+  border-collapse: collapse; width: max-content; min-width: 100%;
+  font-size: 11.5px;
+  table-layout: fixed;
 }
 table.data-table thead th {
   background: var(--sur2); color: var(--tx3);
   font-weight: 700; font-size: 9.5px;
   text-transform: uppercase; letter-spacing: .04em;
   padding: 8px; text-align: center;
-  position: sticky; top: 0;
-  /* Un en-tête long (ex. "Valeur de vente du véhicule HT (€)") ne doit plus
-     forcer toute la colonne à s'élargir démesurément : il se met sur 2 lignes
-     plutôt que d'imposer sa largeur au contenu (qui, lui, est court : un
-     simple nombre). */
-  white-space: normal; line-height: 1.25; max-width: 130px;
+  white-space: normal; line-height: 1.25;
   border: 1px solid var(--brd2);
+  position: sticky; top: 0;
   position: relative;
+  overflow: hidden;
+  /* Largeur par défaut — modifiable via le redimensionnement manuel */
+  width: 110px;
+  min-width: 50px;
 }
 /* Poignée de redimensionnement manuel (façon Excel) — voir script ZONE DESIGN
    en fin de fichier pour le comportement de glisser-déposer. Purement visuel
@@ -3997,13 +3997,12 @@ window.addEventListener("beforeunload", (e) => {
 
   function onResizeMove(e) {
     if (!drag) return;
-    const newWidth = Math.max(40, Math.round(drag.startWidth + (e.clientX - drag.startX)));
+    const newWidth = Math.max(50, Math.round(drag.startWidth + (e.clientX - drag.startX)));
     const th = drag.table.querySelectorAll('thead th')[drag.colIndex];
-    if (th) { th.style.width = newWidth + 'px'; th.style.maxWidth = 'none'; }
-    drag.table.querySelectorAll('tbody tr').forEach(tr => {
-      const cell = tr.children[drag.colIndex];
-      if (cell) cell.style.width = newWidth + 'px';
-    });
+    if (th) {
+      th.style.width    = newWidth + 'px';
+      th.style.minWidth = newWidth + 'px';
+    }
   }
 
   function onResizeEnd() {
