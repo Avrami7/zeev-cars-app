@@ -1613,6 +1613,13 @@ td.num { text-align: right; font-family: var(--mono); }
             <label class="admin-label">SIRET</label>
             <input type="text" id="admin-new-siret" class="admin-input" placeholder="Ex : 780 129 987 00012" maxlength="17">
           </div>
+          <div class="admin-field">
+            <label class="admin-label">Taux de commission <span class="admin-hint">(% — valeur de départ, modifiable dans le Worker)</span></label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="number" id="admin-new-taux" class="admin-input" placeholder="Ex : 1.00" step="0.01" min="0" max="100" style="flex:1;">
+              <span style="font-size:13px; font-weight:700; color:var(--tx3);">%</span>
+            </div>
+          </div>
         </div>
 
         <div class="admin-actions">
@@ -3477,9 +3484,10 @@ function renderAdminConcessions() {
 }
 
 function generateWorkerBlock(key, taux) {
+  const tauxFormate = (parseFloat(taux) || 1.00).toFixed(2);
   return `// À ajouter dans l'objet CONTRACTS du Worker zeev-cars-api :
 ${key}: {
-  rate: ${taux || 1.00},        // taux de commission en % — à ajuster
+  rate: ${tauxFormate},             // taux de commission en % négocié
   signedDate: null,             // "YYYY-MM-DD" quand le contrat est signé
   locked: false,                // passer à true lors de la signature
   endDate: null,                // "YYYY-MM-DD" si le contrat a une échéance
@@ -3503,6 +3511,7 @@ function setupAdminForm() {
       adr2:  document.getElementById('admin-new-adr2').value.trim(),
       siren: document.getElementById('admin-new-siren').value.trim(),
       siret: document.getElementById('admin-new-siret').value.trim(),
+      taux:  parseFloat(document.getElementById('admin-new-taux').value) || 1.00,
     };
   }
 
@@ -3520,7 +3529,7 @@ function setupAdminForm() {
   previewBtn.addEventListener('click', () => {
     const v = getFormValues();
     if (!v.key) { toast('Indiquez d\'abord la clé interne.', 'error'); return; }
-    const block = generateWorkerBlock(v.key, 1.00);
+    const block = generateWorkerBlock(v.key, v.taux);
     document.getElementById('admin-worker-code').textContent = block;
     document.getElementById('admin-worker-preview').classList.remove('hidden');
   });
@@ -3555,8 +3564,8 @@ function setupAdminForm() {
       /* 2. Sauvegarder sur GitHub (zeev-aen-licence → data/concessions.json) */
       await saveConcessionToGitHub(v);
 
-      /* 3. Afficher le bloc Worker */
-      const block = generateWorkerBlock(v.key, 1.00);
+      /* 3. Afficher le bloc Worker avec le vrai taux */
+      const block = generateWorkerBlock(v.key, v.taux);
       document.getElementById('admin-worker-code').textContent = block;
       document.getElementById('admin-worker-preview').classList.remove('hidden');
 
