@@ -846,8 +846,46 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 .kpi-chart-val  { font-size: 8.5px; color: var(--tx3); font-family: var(--mono); white-space: nowrap; }
 .kpi-chart-label{ font-size: 8.5px; color: var(--tx3); margin-top: 2px; text-transform: uppercase; }
 
-/* ═══════════════════════════════════════════════════════════════
-   DASHBOARD EXÉCUTIF KPI CLIENT — Modal plein écran
+/* ── ONGLET ADMIN ─────────────────────────────────────────── */
+.ntab-admin { border: 1px solid var(--brd2) !important; }
+.admin-section { margin-bottom: 28px; }
+.admin-section-title {
+  font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
+  margin-bottom: 14px; padding: 5px 0 5px 12px; border-left: 4px solid var(--ac);
+  color: var(--tx);
+}
+.admin-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+.admin-field { display: flex; flex-direction: column; gap: 5px; }
+.admin-label { font-size: 10.5px; font-weight: 600; color: var(--tx2); }
+.admin-hint { font-size: 9.5px; font-weight: 400; color: var(--tx3); }
+.admin-input {
+  background: var(--sur2); border: 1px solid var(--brd2); border-radius: 8px;
+  padding: 9px 12px; font-size: 11.5px; color: var(--tx); font-family: var(--font);
+  transition: border-color .15s var(--ease);
+}
+.admin-input:focus { outline: none; border-color: var(--ac); }
+.admin-input.error { border-color: var(--rd); }
+.admin-actions { display: flex; gap: 10px; margin-bottom: 16px; }
+.tb-btn-primary { background: var(--ac) !important; color: #fff !important; }
+.tb-btn-primary:hover { background: var(--ac2) !important; }
+
+.admin-worker-block { background: var(--sur2); border: 1px solid var(--brd2); border-radius: 10px; overflow: hidden; }
+.admin-worker-title { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 10.5px; font-weight: 600; border-bottom: 1px solid var(--brd2); color: var(--tx2); }
+.admin-worker-title .admin-hint { flex: 1; }
+.admin-copy-btn { background: var(--ac); color: #fff; border: none; border-radius: 6px; padding: 4px 10px; font-size: 10px; cursor: pointer; font-family: var(--font); font-weight: 600; transition: background .15s; }
+.admin-copy-btn:hover { background: var(--ac2); }
+.admin-worker-code { margin: 0; padding: 14px; font-family: var(--mono); font-size: 10.5px; color: #9ddc8f; background: #15171c; line-height: 1.6; white-space: pre; overflow-x: auto; }
+
+.admin-concessions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.admin-concession-card { background: var(--sur2); border: 1px solid var(--brd2); border-radius: 12px; padding: 14px 16px; }
+.admin-concession-card .ac-key { font-size: 9px; font-weight: 700; color: var(--ac); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+.admin-concession-card .ac-name { font-size: 14px; font-weight: 700; color: var(--tx); margin-bottom: 6px; }
+.admin-concession-card .ac-info { font-size: 10px; color: var(--tx3); line-height: 1.6; }
+.admin-concession-card .ac-status { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 99px; margin-top: 8px; }
+.ac-status-real { background: var(--gr-bg); color: var(--gr); }
+.ac-status-sim { background: var(--am-bg); color: var(--am); }
+
+/* ─────────────────────────────────────────────────────────── */
    ═══════════════════════════════════════════════════════════════ */
 #kpi-client-dialog {
   width: min(98vw, 1300px); max-height: 92vh; overflow-y: auto;
@@ -1388,6 +1426,9 @@ td.num { text-align: right; font-family: var(--mono); }
     <button class="ntab" role="tab" aria-selected="false" aria-controls="panel-kpi" data-tab="kpi" id="tab-kpi">
       Tableau de bord
     </button>
+    <button class="ntab ntab-admin hidden" role="tab" aria-selected="false" aria-controls="panel-admin" data-tab="admin" id="tab-admin">
+      ⚙ Admin
+    </button>
   </nav>
 
   <main id="main-content">
@@ -1520,6 +1561,80 @@ td.num { text-align: right; font-family: var(--mono); }
       </div>
     </dialog>
 
+
+    <!-- ============== PANEL ADMIN ============== -->
+    <section id="panel-admin" class="tab-panel" role="tabpanel" aria-labelledby="tab-admin" tabindex="0" hidden>
+
+      <div class="bandeau bandeau-warn" role="note">
+        <strong>⚙ Zone d'administration — accès restreint au compte propriétaire.</strong><br>
+        Les modifications effectuées ici impactent directement l'application pour tous les utilisateurs.
+      </div>
+
+      <!-- ── SECTION : Concessions existantes ── -->
+      <div class="admin-section">
+        <div class="admin-section-title">Concessions enregistrées</div>
+        <div id="admin-concessions-list"></div>
+      </div>
+
+      <!-- ── SECTION : Ajouter une nouvelle concession ── -->
+      <div class="admin-section">
+        <div class="admin-section-title">Ajouter une nouvelle concession / fournisseur</div>
+
+        <div class="admin-form-grid">
+          <div class="admin-field">
+            <label class="admin-label">Clé interne <span class="admin-hint">(sans espace, ex : RENAULT_FRANCE)</span></label>
+            <input type="text" id="admin-new-key" class="admin-input" placeholder="EX_CONCESSION" pattern="[A-Z0-9_]+" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9_]/g,'')">
+          </div>
+          <div class="admin-field">
+            <label class="admin-label">Nom affiché dans l'app</label>
+            <input type="text" id="admin-new-label" class="admin-input" placeholder="Ex : Renault France">
+          </div>
+          <div class="admin-field">
+            <label class="admin-label">Raison sociale (facturation)</label>
+            <input type="text" id="admin-new-nom" class="admin-input" placeholder="Ex : RENAULT SAS">
+          </div>
+          <div class="admin-field">
+            <label class="admin-label">Forme juridique <span class="admin-hint">(optionnel)</span></label>
+            <input type="text" id="admin-new-forme" class="admin-input" placeholder="Ex : SAS au capital de 5 000 000 €">
+          </div>
+          <div class="admin-field">
+            <label class="admin-label">Adresse ligne 1</label>
+            <input type="text" id="admin-new-adr1" class="admin-input" placeholder="Ex : 13-15 Quai Le Gallo">
+          </div>
+          <div class="admin-field">
+            <label class="admin-label">Adresse ligne 2 (ville, pays)</label>
+            <input type="text" id="admin-new-adr2" class="admin-input" placeholder="Ex : 92100 Boulogne-Billancourt, FR">
+          </div>
+          <div class="admin-field">
+            <label class="admin-label">SIREN</label>
+            <input type="text" id="admin-new-siren" class="admin-input" placeholder="Ex : 780 129 987" maxlength="11">
+          </div>
+          <div class="admin-field">
+            <label class="admin-label">SIRET</label>
+            <input type="text" id="admin-new-siret" class="admin-input" placeholder="Ex : 780 129 987 00012" maxlength="17">
+          </div>
+        </div>
+
+        <div class="admin-actions">
+          <button type="button" class="tb-btn" id="admin-preview-btn">
+            👁 Prévisualiser le code Worker
+          </button>
+          <button type="button" class="tb-btn tb-btn-primary" id="admin-create-btn">
+            ✚ Créer la concession
+          </button>
+        </div>
+
+        <!-- Prévisualisation du bloc Worker -->
+        <div id="admin-worker-preview" class="admin-worker-block hidden">
+          <div class="admin-worker-title">
+            📋 Bloc à coller dans le Worker Cloudflare <span class="admin-hint">(dash.cloudflare.com → zeev-cars-api → Edit Code)</span>
+            <button type="button" class="admin-copy-btn" id="admin-copy-worker">Copier</button>
+          </div>
+          <pre id="admin-worker-code" class="admin-worker-code"></pre>
+        </div>
+      </div>
+
+    </section>
 
     <section id="panel-suivi" class="tab-panel" role="tabpanel" aria-labelledby="tab-suivi" tabindex="0" hidden>
       <div class="bandeau bandeau-info" role="note">
@@ -2481,6 +2596,8 @@ async function bootApp() {
   setupAddVehicle();
   setupConsolidatedInvoice();
   setupKpiClientButtons();
+  setupAdminTab();
+  setupAdminForm();
   setupAutoSave();
 }
 
@@ -3070,6 +3187,14 @@ function renderAll() {
      rendu — les tableaux étant reconstruits entièrement via innerHTML, les
      poignées précédemment injectées disparaissent et doivent être remises. */
   if (typeof window.refreshColumnResizers === 'function') window.refreshColumnResizers();
+  if (typeof renderAdminConcessions === 'function') renderAdminConcessions();
+  if (typeof setupAdminTab === 'function') setupAdminTab();
+  /* setupAdminForm attache les événements une seule fois — guard si déjà fait */
+  if (typeof setupAdminForm === 'function' && !document.getElementById('admin-preview-btn')?._listenerAdded) {
+    setupAdminForm();
+    const btn = document.getElementById('admin-preview-btn');
+    if (btn) btn._listenerAdded = true;
+  }
 }
 
 function getVehicules(concession) {
@@ -3295,11 +3420,183 @@ function renderKpiChart(vehicules, range) {
 })();
 
 /* =====================================================================
-   DASHBOARD EXÉCUTIF KPI CLIENT
-   Classification automatique des véhicules par famille (Utilitaires /
-   VP) et sous-catégories, puis génération d'un rapport de négociation
-   commerciale complet.
+   PANEL ADMIN — gestion des concessions
+   Visible uniquement pour le compte propriétaire (Avrami7).
+   Permet d'ajouter une nouvelle concession sans toucher au code :
+   - formulaire → crée/met à jour concessions.json sur zeev-aen-licence
+   - génère le bloc CONTRACTS à coller dans le Worker Cloudflare
    ===================================================================== */
+
+function isOwner() {
+  if (!state.user) return false;
+  /* Le Worker transmet isOwner: true dans le JWT pour le compte propriétaire.
+     On accepte aussi une vérification par login au cas où le Worker serait
+     mis à jour pour inclure ce champ. */
+  return !!(state.user.isOwner ||
+            state.user.login === 'Avrami7' ||
+            state.user.username === 'Avrami7');
+}
+
+function setupAdminTab() {
+  const tab = document.getElementById('tab-admin');
+  if (!tab) return;
+  /* Visible uniquement pour le compte propriétaire.
+     On vérifie sur plusieurs champs possibles du JWT (le Worker peut nommer
+     le login différemment selon sa version). */
+  if (isOwner()) {
+    tab.classList.remove('hidden');
+  }
+}
+
+function renderAdminConcessions() {
+  const list = document.getElementById('admin-concessions-list');
+  if (!list) return;
+  const concessions = Object.keys(CONCESSION_LEGAL_INFO);
+  list.innerHTML = `<div class="admin-concessions-grid">
+    ${concessions.map(key => {
+      const info = CONCESSION_LEGAL_INFO[key];
+      const label = CONCESSION_LABELS[key] || key;
+      const contract = state.contracts && state.contracts[key];
+      const isReal = contract && contract.locked === true;
+      return `
+        <div class="admin-concession-card">
+          <div class="ac-key">${esc(key)}</div>
+          <div class="ac-name">${esc(label)}</div>
+          <div class="ac-info">
+            ${esc(info.nom)}<br>
+            ${esc(info.identifiants)}<br>
+            ${esc(info.adresseLigne1)}, ${esc(info.adresseLigne2)}
+            ${contract ? `<br>Taux : ${contract.rate} %` : ''}
+          </div>
+          <span class="ac-status ${isReal ? 'ac-status-real' : 'ac-status-sim'}">
+            ${isReal ? '✅ Contrat signé' : '⏳ Simulation'}
+          </span>
+        </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function generateWorkerBlock(key, taux) {
+  return `// À ajouter dans l'objet CONTRACTS du Worker zeev-cars-api :
+${key}: {
+  rate: ${taux || 1.00},        // taux de commission en % — à ajuster
+  signedDate: null,             // "YYYY-MM-DD" quand le contrat est signé
+  locked: false,                // passer à true lors de la signature
+  endDate: null,                // "YYYY-MM-DD" si le contrat a une échéance
+  contratRef: "contrats/${key.toLowerCase()}.pdf"  // PDF signé dans zeev-aen-licence
+},`;
+}
+
+function setupAdminForm() {
+  const previewBtn = document.getElementById('admin-preview-btn');
+  const createBtn  = document.getElementById('admin-create-btn');
+  const copyBtn    = document.getElementById('admin-copy-worker');
+  if (!previewBtn) return;
+
+  function getFormValues() {
+    return {
+      key:   document.getElementById('admin-new-key').value.trim(),
+      label: document.getElementById('admin-new-label').value.trim(),
+      nom:   document.getElementById('admin-new-nom').value.trim(),
+      forme: document.getElementById('admin-new-forme').value.trim(),
+      adr1:  document.getElementById('admin-new-adr1').value.trim(),
+      adr2:  document.getElementById('admin-new-adr2').value.trim(),
+      siren: document.getElementById('admin-new-siren').value.trim(),
+      siret: document.getElementById('admin-new-siret').value.trim(),
+    };
+  }
+
+  function validateForm(v) {
+    const errors = [];
+    if (!v.key)   errors.push('Clé interne obligatoire');
+    if (!v.label) errors.push('Nom affiché obligatoire');
+    if (!v.nom)   errors.push('Raison sociale obligatoire');
+    if (!v.adr1)  errors.push('Adresse obligatoire');
+    if (!v.siren) errors.push('SIREN obligatoire');
+    if (CONCESSION_LEGAL_INFO[v.key]) errors.push(`La clé "${v.key}" existe déjà`);
+    return errors;
+  }
+
+  previewBtn.addEventListener('click', () => {
+    const v = getFormValues();
+    if (!v.key) { toast('Indiquez d\'abord la clé interne.', 'error'); return; }
+    const block = generateWorkerBlock(v.key, 1.00);
+    document.getElementById('admin-worker-code').textContent = block;
+    document.getElementById('admin-worker-preview').classList.remove('hidden');
+  });
+
+  copyBtn && copyBtn.addEventListener('click', () => {
+    const code = document.getElementById('admin-worker-code').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+      copyBtn.textContent = '✓ Copié !';
+      setTimeout(() => { copyBtn.textContent = 'Copier'; }, 2000);
+    });
+  });
+
+  createBtn.addEventListener('click', async () => {
+    const v = getFormValues();
+    const errors = validateForm(v);
+    if (errors.length) { toast(errors[0], 'error'); return; }
+
+    createBtn.disabled = true;
+    createBtn.textContent = '⏳ Création en cours…';
+    try {
+      /* 1. Mettre à jour CONCESSION_LEGAL_INFO et CONCESSION_LABELS en mémoire */
+      CONCESSION_LEGAL_INFO[v.key] = {
+        nom:             v.nom,
+        formeJuridique:  v.forme,
+        adresseLigne1:   v.adr1,
+        adresseLigne2:   v.adr2,
+        identifiants:    `SIREN ${v.siren} — SIRET ${v.siret}`,
+      };
+      CONCESSION_LABELS[v.key] = v.label;
+      CONCESSION_DEFAULTS[v.key] = { marque: v.label.split(' ')[0], raison_sociale: v.nom };
+
+      /* 2. Sauvegarder sur GitHub (zeev-aen-licence → data/concessions.json) */
+      await saveConcessionToGitHub(v);
+
+      /* 3. Afficher le bloc Worker */
+      const block = generateWorkerBlock(v.key, 1.00);
+      document.getElementById('admin-worker-code').textContent = block;
+      document.getElementById('admin-worker-preview').classList.remove('hidden');
+
+      /* 4. Rafraîchir la liste des concessions */
+      renderAdminConcessions();
+
+      toast(`Concession "${v.label}" créée avec succès. Copiez le bloc Worker et déployez dans Cloudflare.`, 'ok');
+
+      /* Réinitialiser le formulaire */
+      ['key','label','nom','forme','adr1','adr2','siren','siret'].forEach(id => {
+        document.getElementById('admin-new-' + id).value = '';
+      });
+
+    } catch(e) {
+      toast('Erreur lors de la création : ' + e.message, 'error');
+    } finally {
+      createBtn.disabled = false;
+      createBtn.textContent = '✚ Créer la concession';
+    }
+  });
+}
+
+async function saveConcessionToGitHub(v) {
+  /* Récupère ou crée data/concessions.json sur zeev-aen-licence via le Worker */
+  const resp = await fetch(`${API_BASE}/concessions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      key:   v.key,
+      label: v.label,
+      legal: CONCESSION_LEGAL_INFO[v.key],
+    })
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
 
 /* Logique de classification : détecte le gabarit dans le libellé du
    modèle (L1H1, L2H1, L3H2…) → Utilitaire ; sinon → VP. */
