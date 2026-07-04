@@ -879,7 +879,12 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 .admin-copy-btn:hover { background: var(--ac2); }
 .admin-worker-code { margin: 0; padding: 14px; font-family: var(--mono); font-size: 10.5px; color: #9ddc8f; background: #15171c; line-height: 1.6; white-space: pre; overflow-x: auto; }
 
-.admin-concessions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.admin-delete-btn {
+  background: transparent; border: 1px solid var(--rd); color: var(--rd);
+  border-radius: 6px; padding: 3px 9px; font-size: 10px; cursor: pointer;
+  font-family: var(--font); font-weight: 600; transition: all .15s;
+}
+.admin-delete-btn:hover { background: var(--rd); color: #fff; }
 .admin-concession-card { background: var(--sur2); border: 1px solid var(--brd2); border-radius: 12px; padding: 14px 16px; }
 .admin-concession-card .ac-key { font-size: 9px; font-weight: 700; color: var(--ac); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
 .admin-concession-card .ac-name { font-size: 14px; font-weight: 700; color: var(--tx); margin-bottom: 6px; }
@@ -3468,8 +3473,9 @@ function renderAdminConcessions() {
       const label = CONCESSION_LABELS[key] || key;
       const contract = state.contracts && state.contracts[key];
       const isReal = contract && contract.locked === true;
+      const nbVeh = (state.data && state.data.vehicules || []).filter(v => v.concession === key).length;
       return `
-        <div class="admin-concession-card">
+        <div class="admin-concession-card" id="admin-card-${esc(key)}">
           <div class="ac-key">${esc(key)}</div>
           <div class="ac-name">${esc(label)}</div>
           <div class="ac-info">
@@ -3477,13 +3483,61 @@ function renderAdminConcessions() {
             ${esc(info.identifiants)}<br>
             ${esc(info.adresseLigne1)}, ${esc(info.adresseLigne2)}
             ${contract ? `<br>Taux : ${contract.rate} %` : ''}
+            <br>${nbVeh} véhicule${nbVeh > 1 ? 's' : ''} enregistré${nbVeh > 1 ? 's' : ''}
           </div>
-          <span class="ac-status ${isReal ? 'ac-status-real' : 'ac-status-sim'}">
-            ${isReal ? '✅ Contrat signé' : '⏳ Simulation'}
-          </span>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;">
+            <span class="ac-status ${isReal ? 'ac-status-real' : 'ac-status-sim'}">
+              ${isReal ? '✅ Contrat signé' : '⏳ Simulation'}
+            </span>
+            <button type="button" class="admin-delete-btn" data-key="${esc(key)}"
+              title="Retirer cette concession de l'app">
+              🗑 Retirer
+            </button>
+          </div>
         </div>`;
     }).join('')}
   </div>`;
+
+  /* Attacher les événements de suppression */
+  list.querySelectorAll('.admin-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => adminRemoveConcession(btn.dataset.key));
+  });
+}
+
+function adminRemoveConcession(key) {
+  const label = CONCESSION_LABELS[key] || key;
+  const nbVeh = (state.data && state.data.vehicules || []).filter(v => v.concession === key).length;
+
+  const msg = nbVeh > 0
+    ? `Retirer "${label}" de l'app ?\n\n⚠️ Cette concession a ${nbVeh} véhicule(s) enregistré(s).\nIls ne seront pas supprimés des données — juste masqués dans l'interface.\n\nPour supprimer définitivement, il faudra aussi mettre à jour le Worker Cloudflare.`
+    : `Retirer "${label}" de l'app ?\n\nIl faudra aussi supprimer son entrée dans le Worker Cloudflare.`;
+
+  if (!confirm(msg)) return;
+
+  /* Supprimer de la config en mémoire */
+  delete CONCESSION_LEGAL_INFO[key];
+  delete CONCESSION_LABELS[key];
+  delete CONCESSION_DEFAULTS[key];
+
+  /* Masquer l'onglet et le panel correspondants */
+  const tab = document.querySelector(`[data-tab="${key.toLowerCase().replace('_pozzi','').replace('_villeneuve','').replace('_','-')}"]`);
+  /* Cherche par aria-controls ou data-concession */
+  document.querySelectorAll('.ntab').forEach(t => {
+    const panel = document.getElementById(t.getAttribute('aria-controls'));
+    if (panel && panel.dataset.concession === key) {
+      t.classList.add('hidden');
+      panel.hidden = true;
+    }
+  });
+
+  /* Générer le bloc Worker à supprimer */
+  const workerRemoveCode = `// À RETIRER du Worker zeev-cars-api (objet CONTRACTS) :\n// ${key}: { ... },`;
+  document.getElementById('admin-worker-code').textContent = workerRemoveCode;
+  document.getElementById('admin-worker-preview').classList.remove('hidden');
+  document.querySelector('.admin-worker-title').textContent = `⚠️ Pensez à supprimer cette entrée du Worker Cloudflare`;
+
+  renderAdminConcessions();
+  toast(`"${label}" retiré de l'interface. Pensez à mettre à jour le Worker Cloudflare.`, 'ok');
 }
 
 function generateWorkerBlock(key, taux) {
