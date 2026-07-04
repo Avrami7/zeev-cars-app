@@ -847,7 +847,7 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 .kpi-chart-label{ font-size: 8.5px; color: var(--tx3); margin-top: 2px; text-transform: uppercase; }
 
 /* ── ONGLET ADMIN ─────────────────────────────────────────── */
-.ntab-admin { border: 1px solid var(--brd2) !important; }
+.nav-sep { width: 1px; background: var(--brd2); margin: 6px 4px; align-self: stretch; }
 .admin-section { margin-bottom: 28px; }
 .admin-section-title {
   font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
@@ -1420,14 +1420,15 @@ td.num { text-align: right; font-family: var(--mono); }
     <button class="ntab" role="tab" aria-selected="false" aria-controls="panel-ford" data-tab="ford" id="tab-ford">
       Facturation Ford Villeneuve
     </button>
-    <button class="ntab" role="tab" aria-selected="false" aria-controls="panel-suivi" data-tab="suivi" id="tab-suivi">
-      All Vehicle Ordered
+    <button class="ntab ntab-admin hidden" role="tab" aria-selected="false" aria-controls="panel-admin" data-tab="admin" id="tab-admin">
+      ⚙ Admin
     </button>
     <button class="ntab" role="tab" aria-selected="false" aria-controls="panel-kpi" data-tab="kpi" id="tab-kpi">
       Tableau de bord
     </button>
-    <button class="ntab ntab-admin hidden" role="tab" aria-selected="false" aria-controls="panel-admin" data-tab="admin" id="tab-admin">
-      ⚙ Admin
+    <span class="nav-sep" aria-hidden="true"></span>
+    <button class="ntab" role="tab" aria-selected="false" aria-controls="panel-suivi" data-tab="suivi" id="tab-suivi">
+      All Vehicle Ordered
     </button>
   </nav>
 
