@@ -2879,7 +2879,7 @@ async function printInvoice(id, concession) {
         <table class="invoice-table">
           <tr><th>Valeur de vente HT du contrat</th><td>${fmtEUR(valeur)}</td></tr>
           <tr><th>Taux de commission contractuel</th><td>${rate.toFixed(2)} %</td></tr>
-          <tr class="invoice-total"><th>Commission TTC due</th><td>${fmtEUR(commission)}</td></tr>
+          <tr class="invoice-total"><th>Commission HT due</th><td>${fmtEUR(commission)}</td></tr>
         </table>
         <p class="invoice-note">
           Base de calcul : montant HT total du contrat de location signé (Art.5 al.2).
@@ -3304,7 +3304,7 @@ function renderKPI(containerId, vehicules, simulation = false) {
   const financialCards = `
     <div class="kpi-card"><div class="kpi-label">Facturables</div><div class="kpi-value gr">${facturables}</div></div>
     <div class="kpi-card"><div class="kpi-label">Valeur de vente totale (HT)</div><div class="kpi-value">${fmtEUR(valeurVenteTotale)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Commission TTC totale${suffix}</div><div class="kpi-value">${fmtEUR(commissionTotale)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Commission HT totale${suffix}</div><div class="kpi-value">${fmtEUR(commissionTotale)}</div></div>
     <div class="kpi-card" title="Commission des véhicules dont le statut paiement est « Payé ».">
       <div class="kpi-label">Commission encaissée${suffix}</div><div class="kpi-value gr">${fmtEUR(commissionEncaissee)}</div>
     </div>
@@ -3392,7 +3392,7 @@ function renderKpiDashboard() {
     <div class="kpi-card"><div class="kpi-label">Livrés</div><div class="kpi-value gr">${nbLivres}</div></div>
     <div class="kpi-card"><div class="kpi-label">Facturables</div><div class="kpi-value am">${nbFacturables}</div></div>
     <div class="kpi-card"><div class="kpi-label">Valeur parc HT</div><div class="kpi-value" style="font-size:15px;">${fmtEUR(valeurParcHT)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Commission potentielle TTC</div><div class="kpi-value gr" style="font-size:15px;">${fmtEUR(commissionPotentielle)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Commission potentielle HT</div><div class="kpi-value gr" style="font-size:15px;">${fmtEUR(commissionPotentielle)}</div></div>
     <div class="kpi-card"><div class="kpi-label">À facturer</div><div class="kpi-value am">${fmtEUR(aFacturer)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Facturé — en attente</div><div class="kpi-value am">${fmtEUR(factureEnAttente)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Encaissé</div><div class="kpi-value gr">${fmtEUR(encaisse)}</div></div>
@@ -4141,12 +4141,12 @@ function renderConcessionPanel(concession, tableId, kpiId) {
        "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
        "Valeur de vente du véhicule HT (€)",
        "Statut paiement", "Date paiement reçu", "Statut facturation", "N° facture", "Date facture",
-       simulation ? "Commission TTC (simulation)" : "Commission TTC",
+       simulation ? "Commission HT (simulation)" : "Commission HT",
        ...(simulation ? [] : ["Pénalité de retard (Art.8)"]),
        "Éligibilité", "Facture", "Remarques", "Source", "Dernière MAJ"];
 
   const COMPUTED_HEADER_HINT = "Colonne calculée automatiquement — non modifiable directement. Voir l'infobulle de chaque ligne pour le détail.";
-  const isComputedHeader = h => h === "Éligibilité" || h.startsWith("Commission TTC") || h.startsWith("Pénalité de retard");
+  const isComputedHeader = h => h === "Éligibilité" || h.startsWith("Commission HT") || h.startsWith("Pénalité de retard");
   let html = "<thead><tr>" + headers.map(h =>
     `<th scope="col"${h === "VIN" ? ' data-col="vin"' : ""}${isComputedHeader(h) ? ` title="${esc(COMPUTED_HEADER_HINT)}"` : ""}>${h}${isComputedHeader(h) ? ' <span aria-hidden="true" style="opacity:.6;">ⓘ</span>' : ""}</th>`
   ).join("") + "</tr></thead><tbody>";
