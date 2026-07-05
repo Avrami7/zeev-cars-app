@@ -3292,24 +3292,21 @@ function renderKpiDashboard() {
     return;
   }
 
-  /* Concessions "réelles" = contrat verrouillé (locked === true) transmis par
-     le Worker. Dès que Ford Villeneuve (ou toute future concession) passe à
-     locked: true, elle apparaît ici automatiquement, sans aucune autre
-     modification de code. On ne mélange jamais une concession en simulation
-     dans ces totaux. */
-  const concessionsReelles = Object.keys(state.contracts || {})
-    .filter(key => state.contracts[key] && state.contracts[key].locked === true);
+  /* Toutes les concessions connues — avec ou sans contrat signé.
+     Les simulations sont incluses mais clairement identifiées. */
+  const toutesLesconcessions = Object.keys(CONCESSION_LEGAL_INFO);
+  const concessionsReelles = toutesLesconcessions.filter(key => state.contracts && state.contracts[key] && state.contracts[key].locked === true);
+  const concessionsSimulation = toutesLesconcessions.filter(key => !state.contracts || !state.contracts[key] || state.contracts[key].locked !== true);
 
   const bandeau = document.getElementById("kpi-dashboard-scope");
   if (bandeau) {
-    bandeau.textContent = concessionsReelles.length
-      ? "Vue comptable simplifiée — concession(s) sous contrat réel signé : " +
-        concessionsReelles.map(k => CONCESSION_LABELS[k] || k).join(", ") +
-        ". Toute concession encore en simulation est volontairement exclue de ces totaux."
-      : "Aucune concession sous contrat réel signé à ce jour — le tableau de bord s'activera automatiquement dès qu'un contrat sera verrouillé (locked: true) côté Worker.";
+    const parts = [];
+    if (concessionsReelles.length) parts.push("Contrat signé : " + concessionsReelles.map(k => CONCESSION_LABELS[k] || k).join(", "));
+    if (concessionsSimulation.length) parts.push("Simulation : " + concessionsSimulation.map(k => CONCESSION_LABELS[k] || k).join(", "));
+    bandeau.textContent = "Vue globale — " + parts.join(" · ");
   }
 
-  const vehicules = state.data.vehicules.filter(v => concessionsReelles.includes(v.concession));
+  const vehicules = state.data.vehicules.filter(v => toutesLesconcessions.includes(v.concession));
 
   const aFacturer = vehicules
     .filter(v => computeEligibilite(v) === "FACTURABLE" && v.statut_facturation !== "FACTURE")
