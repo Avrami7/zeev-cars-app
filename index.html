@@ -3281,7 +3281,11 @@ function renderKPI(containerId, vehicules, simulation = false) {
   const nonLivres          = total - livres;
   const facturables        = vehicules.filter(v => computeEligibilite(v) === "FACTURABLE").length;
   const valeurVenteTotale  = vehicules.reduce((s, v) => s + (Number(v.valeur_vente_ht) || 0), 0);
-  const commissionTotale   = vehicules.reduce((s, v) => s + computeCommission(v), 0);
+
+  /* En simulation : on calcule sur la valeur dès qu'elle est renseignée,
+     sans condition de livraison/PV — pour avoir des chiffres visibles. */
+  const calcComm = v => simulation ? computeCommissionSimulation(v) : computeCommission(v);
+  const commissionTotale   = vehicules.reduce((s, v) => s + calcComm(v), 0);
   const suffix             = simulation ? " (simulation)" : "";
 
   /* Suivi des règlements — demande explicite : pouvoir estimer combien est
@@ -3290,7 +3294,7 @@ function renderKPI(containerId, vehicules, simulation = false) {
      prochains encaissements). */
   const commissionEncaissee = vehicules
     .filter(v => v.statut_paiement === "PAYE")
-    .reduce((s, v) => s + computeCommission(v), 0);
+    .reduce((s, v) => s + calcComm(v), 0);
   const commissionEnAttente = commissionTotale - commissionEncaissee;
   const delaiMoyen = computeDelaiMoyenPaiement(vehicules);
 
