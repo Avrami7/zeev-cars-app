@@ -2208,6 +2208,14 @@ function computeCommission(v) {
   return 0;
 }
 
+/* Version simulation : calcule dès que la valeur de vente est renseignée,
+   sans condition de livraison ni de PV signé. Affichage uniquement. */
+function computeCommissionSimulation(v) {
+  if (!v.valeur_vente_ht) return 0;
+  return Number(v.valeur_vente_ht) * tauxConcession(v.concession);
+}
+
+
 /* =====================================================================
    PÉNALITÉS DE RETARD DE PAIEMENT — fonctionnalité demandée explicitement,
    strictement basée sur l'Art.8 de la convention BMW Ch.Pozzi :
@@ -4116,7 +4124,8 @@ function renderConcessionPanel(concession, tableId, kpiId) {
 
 
   vehicules.forEach((v, i) => {
-    const commission  = computeCommission(v);
+    /* En simulation, affiche la commission dès que la valeur est renseignée */
+    const commission = simulation ? computeCommissionSimulation(v) : computeCommission(v);
     const eligibilite = computeEligibilite(v);
     const canInvoice  = !simulation && eligibilite === "FACTURABLE";
     const invoiceTitle = canInvoice
@@ -4248,7 +4257,7 @@ function attachCellHandlers(tableId, concession) {
 
       const row = table.querySelector(`tr[data-id="${id}"]`);
       if (row) {
-        const commission  = computeCommission(v);
+        const commission  = simulation ? computeCommissionSimulation(v) : computeCommission(v);
         const eligibilite = computeEligibilite(v);
         const commissionCell  = row.querySelector('[data-col="commission"]');
         const eligibiliteCell = row.querySelector('[data-col="eligibilite"]');
