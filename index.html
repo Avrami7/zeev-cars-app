@@ -2680,10 +2680,13 @@ function setSyncStatus(text, type = "") {
 function setupReload() {
   document.getElementById("reload-btn").addEventListener("click", async () => {
     if (state.dirty && !confirm("Des modifications non enregistrées seront perdues. Recharger quand même ?")) return;
-    /* Hard reload : vide le cache du navigateur et recharge la page entière
-       pour s'assurer d'avoir la dernière version de l'app déployée,
-       puis recharge aussi les données depuis GitHub. */
-    window.location.reload(true);
+    /* Cache-busting garanti : on ajoute un timestamp unique dans l'URL.
+       GitHub Pages (CDN) ne peut pas servir une version cachée puisque
+       l'URL change à chaque clic — le navigateur ET le CDN sont forcés
+       de télécharger le fichier frais depuis l'origine. */
+    const url = new URL(window.location.href);
+    url.searchParams.set("v", Date.now());
+    window.location.replace(url.toString());
   });
 }
 
