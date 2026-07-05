@@ -2680,7 +2680,10 @@ function setSyncStatus(text, type = "") {
 function setupReload() {
   document.getElementById("reload-btn").addEventListener("click", async () => {
     if (state.dirty && !confirm("Des modifications non enregistrées seront perdues. Recharger quand même ?")) return;
-    await reloadData();
+    /* Hard reload : vide le cache du navigateur et recharge la page entière
+       pour s'assurer d'avoir la dernière version de l'app déployée,
+       puis recharge aussi les données depuis GitHub. */
+    window.location.reload(true);
   });
 }
 
