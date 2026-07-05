@@ -2696,14 +2696,50 @@ function setSyncStatus(text, type = "") {
 function setupReload() {
   document.getElementById("reload-btn").addEventListener("click", async () => {
     if (state.dirty && !confirm("Des modifications non enregistrées seront perdues. Recharger quand même ?")) return;
-    /* Cache-busting garanti : on ajoute un timestamp unique dans l'URL.
-       GitHub Pages (CDN) ne peut pas servir une version cachée puisque
-       l'URL change à chaque clic — le navigateur ET le CDN sont forcés
-       de télécharger le fichier frais depuis l'origine. */
     const url = new URL(window.location.href);
     url.searchParams.set("v", Date.now());
     window.location.replace(url.toString());
   });
+
+  /* ── Détection automatique de nouvelle version ──────────────────────
+     Toutes les 30 secondes, on vérifie si une nouvelle version de
+     l'app a été déployée en comparant l'ETag du fichier index.html
+     sur GitHub Pages. Si une nouvelle version est détectée, on affiche
+     un toast et on recharge automatiquement — sans que l'utilisateur
+     n'ait à faire quoi que ce soit. */
+  (function setupAutoUpdate() {
+    let currentEtag = null;
+    let checking    = false;
+
+    async function checkForUpdate() {
+      if (checking || document.hidden) return;
+      checking = true;
+      try {
+        const url = window.location.origin + window.location.pathname;
+        const res = await fetch(url, { method: "HEAD", cache: "no-store" });
+        const etag = res.headers.get("etag") || res.headers.get("last-modified");
+        if (!etag) return;
+        if (currentEtag === null) { currentEtag = etag; return; }
+        if (etag !== currentEtag) {
+          currentEtag = etag;
+          /* Nouvelle version détectée — rechargement automatique */
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.set("v", Date.now());
+          window.location.replace(newUrl.toString());
+        }
+      } catch (_) { /* réseau indisponible — on réessaiera */ }
+      finally { checking = false; }
+    }
+
+    /* Vérification initiale puis toutes les 30 secondes */
+    checkForUpdate();
+    setInterval(checkForUpdate, 30000);
+
+    /* Vérification immédiate au retour sur l'onglet */
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) checkForUpdate();
+    });
+  })();
 }
 
 /* =====================================================================
