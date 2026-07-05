@@ -3308,6 +3308,13 @@ function renderKpiDashboard() {
 
   const vehicules = state.data.vehicules.filter(v => toutesLesconcessions.includes(v.concession));
 
+  // KPI toujours disponibles
+  const nbTotal       = vehicules.length;
+  const nbLivres      = vehicules.filter(v => v.statut_livraison === "LIVRE").length;
+  const nbFacturables = vehicules.filter(v => computeEligibilite(v) === "FACTURABLE").length;
+  const valeurParcHT  = vehicules.reduce((s, v) => s + (Number(v.valeur_vente_ht) || 0), 0);
+  const commissionPotentielle = vehicules.reduce((s, v) => s + computeCommission(v), 0);
+
   const aFacturer = vehicules
     .filter(v => computeEligibilite(v) === "FACTURABLE" && v.statut_facturation !== "FACTURE")
     .reduce((s, v) => s + computeCommission(v), 0);
@@ -3320,50 +3327,35 @@ function renderKpiDashboard() {
     .filter(v => v.statut_paiement === "PAYE")
     .reduce((s, v) => s + computeCommission(v), 0);
 
-  const totalTheorique = aFacturer + factureEnAttente + encaisse;
-  const totalFacture   = factureEnAttente + encaisse; // tout ce qui a été facturé un jour
+  const totalTheorique   = aFacturer + factureEnAttente + encaisse;
+  const totalFacture     = factureEnAttente + encaisse;
   const tauxRecouvrement = totalFacture > 0 ? (encaisse / totalFacture) * 100 : null;
-
-  const delaiMoyen = computeDelaiMoyenPaiement(vehicules);
+  const delaiMoyen       = computeDelaiMoyenPaiement(vehicules);
 
   const penalitesEnCours = vehicules.reduce((s, v) => {
     const p = computeLatePenalty(v);
     return s + (p ? p.total : 0);
   }, 0);
 
-  const now          = new Date();
-  const debutAnnee   = new Date(now.getFullYear(), 0, 1);
-  const joursEcoules = Math.max(1, Math.round((now - debutAnnee) / 86400000));
+  const now             = new Date();
+  const debutAnnee      = new Date(now.getFullYear(), 0, 1);
+  const joursEcoules    = Math.max(1, Math.round((now - debutAnnee) / 86400000));
   const estimationAnnuelle = encaisse * (365 / joursEcoules);
 
   const cards = `
-    <div class="kpi-card" title="Véhicules Facturable mais pas encore facturés.">
-      <div class="kpi-label">À facturer</div><div class="kpi-value am">${fmtEUR(aFacturer)}</div>
-    </div>
-    <div class="kpi-card" title="Facturé, mais le paiement n'est pas encore enregistré comme reçu (créance client).">
-      <div class="kpi-label">Facturé — en attente</div><div class="kpi-value am">${fmtEUR(factureEnAttente)}</div>
-    </div>
-    <div class="kpi-card" title="Commission dont le paiement a été reçu et daté.">
-      <div class="kpi-label">Encaissé</div><div class="kpi-value gr">${fmtEUR(encaisse)}</div>
-    </div>
-    <div class="kpi-card" title="Somme des trois cartes ci-dessus : ce que représente l'activité BMW à ce jour.">
-      <div class="kpi-label">Total (théorique)</div><div class="kpi-value">${fmtEUR(totalTheorique)}</div>
-    </div>
-    <div class="kpi-card" title="Encaissé ÷ Facturé. Indique la part de ce qui a été facturé qui a réellement été payée.">
-      <div class="kpi-label">Taux de recouvrement</div>
-      <div class="kpi-value">${tauxRecouvrement === null ? "—" : tauxRecouvrement.toFixed(0) + " %"}</div>
-    </div>
-    <div class="kpi-card" title="Calculé sur les factures où une date de paiement reçu est renseignée.">
-      <div class="kpi-label">Délai moyen de règlement</div>
-      <div class="kpi-value">${delaiMoyen === null ? "—" : Math.round(delaiMoyen) + " j"}</div>
-    </div>
-    <div class="kpi-card" title="Pénalités de retard cumulées sur les factures actuellement en retard (Art.8).">
-      <div class="kpi-label">Pénalités de retard en cours</div>
-      <div class="kpi-value ${penalitesEnCours > 0 ? "rd" : ""}">${fmtEUR(penalitesEnCours)}</div>
-    </div>
-    <div class="kpi-card" title="Projection indicative : encaissé à ce jour, ramené sur une année pleine. Pas un engagement chiffré.">
-      <div class="kpi-label">Estimation annuelle</div><div class="kpi-value">${fmtEUR(estimationAnnuelle)}</div>
-    </div>`;
+    <div class="kpi-card"><div class="kpi-label">Total véhicules</div><div class="kpi-value">${nbTotal}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Livrés</div><div class="kpi-value gr">${nbLivres}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Facturables</div><div class="kpi-value am">${nbFacturables}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Valeur parc HT</div><div class="kpi-value" style="font-size:15px;">${fmtEUR(valeurParcHT)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Commission potentielle</div><div class="kpi-value gr" style="font-size:15px;">${fmtEUR(commissionPotentielle)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">À facturer</div><div class="kpi-value am">${fmtEUR(aFacturer)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Facturé — en attente</div><div class="kpi-value am">${fmtEUR(factureEnAttente)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Encaissé</div><div class="kpi-value gr">${fmtEUR(encaisse)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total (théorique)</div><div class="kpi-value">${fmtEUR(totalTheorique)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Taux de recouvrement</div><div class="kpi-value">${tauxRecouvrement === null ? "—" : tauxRecouvrement.toFixed(0) + " %"}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Délai moyen de règlement</div><div class="kpi-value">${delaiMoyen === null ? "—" : Math.round(delaiMoyen) + " j"}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Pénalités de retard</div><div class="kpi-value ${penalitesEnCours > 0 ? "rd" : ""}">${fmtEUR(penalitesEnCours)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Estimation annuelle</div><div class="kpi-value">${fmtEUR(estimationAnnuelle)}</div></div>`;
 
   document.getElementById("kpi-dashboard").innerHTML = cards;
   /* Mémorisé pour permettre de re-tracer le graphique seul (changement de
