@@ -2702,43 +2702,32 @@ function setupReload() {
   });
 
   /* ── Détection automatique de nouvelle version ──────────────────────
-     Toutes les 30 secondes, on vérifie si une nouvelle version de
-     l'app a été déployée en comparant l'ETag du fichier index.html
-     sur GitHub Pages. Si une nouvelle version est détectée, on affiche
-     un toast et on recharge automatiquement — sans que l'utilisateur
-     n'ait à faire quoi que ce soit. */
+     Vérifie version.json (fichier ultra-léger ~50 octets) toutes les
+     30 secondes avec un ?_=timestamp qui bypass le CDN GitHub Pages.
+     Dès qu'un nouveau SHA est détecté, rechargement automatique. */
   (function setupAutoUpdate() {
-    let currentEtag = null;
-    let checking    = false;
+    let currentSha = null;
 
     async function checkForUpdate() {
-      if (checking || document.hidden) return;
-      checking = true;
+      if (document.hidden) return;
       try {
-        const url = window.location.origin + window.location.pathname;
-        const res = await fetch(url, { method: "HEAD", cache: "no-store" });
-        const etag = res.headers.get("etag") || res.headers.get("last-modified");
-        if (!etag) return;
-        if (currentEtag === null) { currentEtag = etag; return; }
-        if (etag !== currentEtag) {
-          currentEtag = etag;
-          /* Nouvelle version détectée — rechargement automatique */
-          const newUrl = new URL(window.location.href);
-          newUrl.searchParams.set("v", Date.now());
-          window.location.replace(newUrl.toString());
+        const base = window.location.origin + window.location.pathname.replace(/\/?$/, '/');
+        const res  = await fetch(base + 'version.json?_=' + Date.now(), { cache: "no-store" });
+        if (!res.ok) return;
+        const { sha } = await res.json();
+        if (!sha) return;
+        if (currentSha === null) { currentSha = sha; return; }
+        if (sha !== currentSha) {
+          const url = new URL(window.location.href);
+          url.searchParams.set("v", Date.now());
+          window.location.replace(url.toString());
         }
-      } catch (_) { /* réseau indisponible — on réessaiera */ }
-      finally { checking = false; }
+      } catch (_) { /* réseau indisponible */ }
     }
 
-    /* Vérification initiale puis toutes les 30 secondes */
     checkForUpdate();
     setInterval(checkForUpdate, 30000);
-
-    /* Vérification immédiate au retour sur l'onglet */
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) checkForUpdate();
-    });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
   })();
 }
 
