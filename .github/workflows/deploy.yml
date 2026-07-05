@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -24,8 +24,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Generate version.json
+        run: |
+          echo '{"sha":"'${GITHUB_SHA:0:8}'","ts":'$(date +%s)'}' > version.json
+
+      - name: Commit version.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.json
+          git diff --staged --quiet || git commit -m "ci: update version.json [skip ci]"
+          git push
+
       - name: Setup Pages
-        id: pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
@@ -36,7 +47,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          timeout: 600000
-          error_count: 10
-          reporting_interval: 5000
