@@ -1,6 +1,6 @@
 {
   "meta": {
-    "derniere_maj": "2026-07-05"
+    "derniere_maj": "2026-07-07"
   },
   "vehicules": [
     {
@@ -320,7 +320,7 @@
       "marque": "BMW",
       "raison_sociale": "CH. POZZI",
       "vin": "",
-      "valeur_vente_ht": null,
+      "valeur_vente_ht": 49030,
       "statut_paiement": "NON_PAYE",
       "statut_facturation": "NON_FACTURE",
       "pv_signe": "SIGNE",
@@ -328,8 +328,8 @@
       "numero_facture": "",
       "date_facture": "",
       "source": "",
-      "maj_par": "",
-      "maj_le": "",
+      "maj_par": "ZEEV ",
+      "maj_le": "2026-07-07 21:23",
       "id": "bmw-014",
       "client": "SIEMENS ENERGY SAS",
       "conducteur": "Jérôme Duchateau",
