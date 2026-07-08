@@ -512,6 +512,33 @@ body::before {
 .closing-overlay.phase-cine .cine-bar { height: 9%; }
 .closing-overlay.phase-cine-out .cine-bar { height: 0; transition-duration: 1.6s; }
 
+/* ── Feux F1 — écran de démarrage après login ───────────────────────── */
+#f1-lights-overlay {
+  position: fixed; inset: 0; z-index: 99999;
+  background: #0a0a0a;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 36px;
+  opacity: 1; transition: opacity .6s ease;
+}
+#f1-lights-overlay.fade-out { opacity: 0; pointer-events: none; }
+.f1-lights-row { display: flex; gap: 22px; }
+.f1-light {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: #1a0000; border: 3px solid #2a0000;
+  box-shadow: 0 0 0 0 rgba(220,0,0,0);
+  transition: background .06s, box-shadow .06s, border-color .06s;
+}
+.f1-light.on {
+  background: #cc0000; border-color: #ff3333;
+  box-shadow: 0 0 20px 8px rgba(200,0,0,.75), 0 0 50px 16px rgba(200,0,0,.35);
+}
+.f1-brand {
+  font-size: 11px; font-weight: 800; letter-spacing: .3em;
+  text-transform: uppercase; color: #333;
+  font-family: -apple-system, sans-serif;
+}
+.f1-brand b { color: #cc0000; }
+
 /* ── Phase 2-4 : Scène Lotus ───────────────────────────────────────── */
 .lotus-scene {
   position: absolute; inset: 0;
@@ -2731,6 +2758,40 @@ async function bootApp() {
   });
 
   document.getElementById("auth-overlay").classList.add("hidden");
+
+  /* ── Séquence feux F1 avant d'ouvrir l'app ──────────────────────────
+     5 feux rouges qui s'allument un par un (400ms entre chaque),
+     puis s'éteignent tous ensemble après une pause — like a real race start. */
+  await new Promise(resolve => {
+    const overlay = document.createElement("div");
+    overlay.id = "f1-lights-overlay";
+    overlay.innerHTML = `
+      <div class="f1-brand">ZEEV <b>CARS</b></div>
+      <div class="f1-lights-row">
+        ${[1,2,3,4,5].map(i => `<div class="f1-light" id="f1-l${i}"></div>`).join("")}
+      </div>
+      <div class="f1-brand" style="font-size:9px; letter-spacing:.15em; color:#222;">SYSTEMS GO</div>
+    `;
+    document.body.appendChild(overlay);
+
+    const lights = [1,2,3,4,5].map(i => document.getElementById(`f1-l${i}`));
+    let i = 0;
+    const onInterval = setInterval(() => {
+      if (i < lights.length) { lights[i].classList.add("on"); i++; }
+      else {
+        clearInterval(onInterval);
+        /* Pause 600ms tous allumés, puis extinction et ouverture */
+        setTimeout(() => {
+          lights.forEach(l => l.classList.remove("on"));
+          setTimeout(() => {
+            overlay.classList.add("fade-out");
+            setTimeout(() => { overlay.remove(); resolve(); }, 600);
+          }, 200);
+        }, 600);
+      }
+    }, 380);
+  });
+
   document.getElementById("app-screen").classList.remove("hidden");
 
   const labelEl = document.getElementById("current-user-label");
