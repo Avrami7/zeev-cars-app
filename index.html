@@ -2668,6 +2668,68 @@ async function bootApp() {
     }, 80);
   });
 
+  /* ── Animation feux verts ──────────────────────────────────────────
+     3 feux s'allument de gauche à droite (comme un démarrage) avant
+     que l'app apparaisse. Durée totale : ~900ms. */
+  await new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position:fixed; inset:0; background:#0a0f1a;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      z-index:9999; gap:32px;
+    `;
+
+    const logo = document.createElement('div');
+    logo.style.cssText = `font-family:var(--font); font-size:28px; font-weight:800; letter-spacing:-.01em; color:#fff;`;
+    logo.innerHTML = `ZEEV<span style="color:var(--ac)">CARS</span>`;
+
+    const lights = document.createElement('div');
+    lights.style.cssText = `display:flex; gap:16px; align-items:center;`;
+
+    const dots = [1,2,3].map(() => {
+      const d = document.createElement('div');
+      d.style.cssText = `
+        width:22px; height:22px; border-radius:50%;
+        background:#1a2030; border:2px solid #2a3550;
+        transition:background .2s ease, border-color .2s ease, box-shadow .2s ease;
+      `;
+      lights.appendChild(d);
+      return d;
+    });
+
+    overlay.appendChild(logo);
+    overlay.appendChild(lights);
+    document.body.appendChild(overlay);
+
+    const green = '#1aa15e';
+    const glow  = '0 0 12px #1aa15e, 0 0 24px #1aa15e55';
+
+    // Allumer les 3 feux un par un
+    setTimeout(() => {
+      dots[0].style.background = green;
+      dots[0].style.borderColor = green;
+      dots[0].style.boxShadow = glow;
+    }, 150);
+    setTimeout(() => {
+      dots[1].style.background = green;
+      dots[1].style.borderColor = green;
+      dots[1].style.boxShadow = glow;
+    }, 380);
+    setTimeout(() => {
+      dots[2].style.background = green;
+      dots[2].style.borderColor = green;
+      dots[2].style.boxShadow = glow;
+    }, 610);
+
+    // Disparition en fondu
+    setTimeout(() => {
+      overlay.style.transition = 'opacity .3s ease';
+      overlay.style.opacity = '0';
+      setTimeout(() => { overlay.remove(); resolve(); }, 320);
+    }, 920);
+  });
+
   document.getElementById("auth-overlay").classList.add("hidden");
   document.getElementById("app-screen").classList.remove("hidden");
 
