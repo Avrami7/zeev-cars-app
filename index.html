@@ -2438,7 +2438,27 @@ async function handleGithubCallback() {
   try {
     const { token, user } = await apiLoginGithub(code, cleanUrl);
     persistSession(token, user);
-    if (window.f1GoGreen) f1GoGreen();
+
+    /* Animation séquentielle : feux verts un par un de gauche à droite,
+       puis ouverture de l'app après le dernier feu. */
+    await new Promise(resolve => {
+      const ids = ['l1','l2','l3','l4','l5'];
+      if (window.f1GoRed) f1GoRed(); // éteindre d'abord
+      let i = 0;
+      function lightNextGreen() {
+        if (i < ids.length) {
+          const el = document.getElementById(ids[i]);
+          if (el) { el.classList.remove('on','off'); el.classList.add('green'); }
+          i++;
+          setTimeout(lightNextGreen, 400);
+        } else {
+          // Tous allumés — pause 600ms puis on lance l'app
+          setTimeout(resolve, 600);
+        }
+      }
+      setTimeout(lightNextGreen, 200);
+    });
+
     await bootApp();
   } catch (e) {
     showLoginError(e.message || "Connexion impossible.");
@@ -2602,6 +2622,52 @@ function playClosingAnimation() {
    BOOT
    ===================================================================== */
 async function bootApp() {
+
+  /* ── Animation de démarrage : feux verts de gauche à droite ─────────
+     Un overlay sombre s'affiche brièvement avec 5 pastilles qui
+     s'allument en vert une par une (80ms d'intervalle), puis l'app
+     s'ouvre avec un fondu. Durée totale : ~700ms. */
+  await new Promise(resolve => {
+    const splash = document.createElement("div");
+    splash.style.cssText = `
+      position:fixed; inset:0; z-index:99999;
+      background:#0a0d12;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center; gap:24px;
+    `;
+    splash.innerHTML = `
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:22px; color:#fff; letter-spacing:.05em;">
+        ZEEV<span style="color:#22c55e;">CARS</span>
+      </div>
+      <div id="boot-lights" style="display:flex; gap:10px;">
+        ${[0,1,2,3,4].map(i => `<div data-light="${i}" style="
+          width:14px; height:14px; border-radius:50%;
+          background:#1a2a1a; border:2px solid #22c55e22;
+          transition: background .15s, box-shadow .15s;
+        "></div>`).join('')}
+      </div>
+      <div style="font-size:10px; color:#555; letter-spacing:.1em; text-transform:uppercase;">Initialisation…</div>
+    `;
+    document.body.appendChild(splash);
+
+    const lights = splash.querySelectorAll("[data-light]");
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < lights.length) {
+        lights[i].style.background = "#22c55e";
+        lights[i].style.boxShadow = "0 0 10px #22c55e, 0 0 20px #22c55e66";
+        i++;
+      } else {
+        clearInterval(interval);
+        setTimeout(() => {
+          splash.style.transition = "opacity .35s";
+          splash.style.opacity = "0";
+          setTimeout(() => { splash.remove(); resolve(); }, 380);
+        }, 150);
+      }
+    }, 80);
+  });
+
   document.getElementById("auth-overlay").classList.add("hidden");
   document.getElementById("app-screen").classList.remove("hidden");
 
@@ -4136,14 +4202,14 @@ function renderConcessionPanel(concession, tableId, kpiId) {
   const headers = restricted
     ? ["N°", "Client", "Conducteur", "Modèle / Version", "Immat.", "VIN",
        "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
-       "Éligibilité facturation", "Remarques", "Dernière MAJ"]
+       "N° de contrat", "Éligibilité facturation", "Remarques", "Dernière MAJ"]
     : ["N°", "Client", "Conducteur", "Modèle / Version", "Immat.", "VIN",
        "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
        "Valeur de vente du véhicule HT (€)",
        "Statut paiement", "Date paiement reçu", "Statut facturation", "N° facture", "Date facture",
        simulation ? "Commission HT (simulation)" : "Commission HT",
        ...(simulation ? [] : ["Pénalité de retard (Art.8)"]),
-       "Éligibilité facturation", "Facture", "Remarques", "Dernière MAJ"];
+       "N° de contrat", "Éligibilité facturation", "Facture", "Remarques", "Dernière MAJ"];
 
   const COMPUTED_HEADER_HINT = "Colonne calculée automatiquement — non modifiable directement. Voir l'infobulle de chaque ligne pour le détail.";
   const isComputedHeader = h => h === "Éligibilité" || h.startsWith("Commission HT") || h.startsWith("Pénalité de retard");
@@ -4203,6 +4269,7 @@ function renderConcessionPanel(concession, tableId, kpiId) {
           : "Aucun retard constaté : soit la facture n'est pas encore émise/en retard, soit déjà payée.";
         html += `<td class="num" data-col="penalite" title="${penaltyHint}">${penalty ? fmtEUR(penalty.total) : "—"}</td>`;
       }
+      html += cellInput(v.id, "numero_contrat", v.numero_contrat, canEdit, "text");
       /* Éligibilité facturation — version colorée avec libellés clairs */
       const eligColor = eligibilite === "FACTURABLE" ? "var(--gr)" :
                         eligibilite === "ATTENTE_LIVRAISON" ? "#c98a13" :
