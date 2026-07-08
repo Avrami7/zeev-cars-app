@@ -2522,12 +2522,90 @@ function playClosingAnimation() {
   if (!overlay) { window.location.reload(); return; }
 
   const canvas      = document.getElementById("tv-static");
-  const flash        = document.getElementById("closing-flash");
-  const tvCh          = document.getElementById("tv-ch");
-  const scene        = document.getElementById("lotus-scene");
-  const video        = document.getElementById("lotus-video");
-  const glow         = document.getElementById("lotus-glow");
-  const blackout     = document.getElementById("closing-blackout");
+  const flash       = document.getElementById("closing-flash");
+  const tvCh        = document.getElementById("tv-ch");
+  const scene       = document.getElementById("lotus-scene");
+  const video       = document.getElementById("lotus-video");
+  const glow        = document.getElementById("lotus-glow");
+  const blackout    = document.getElementById("closing-blackout");
+
+  // ── Canvas TV static ──────────────────────────────────────────────
+  let staticRaf = null;
+  function drawStatic() {
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const img = ctx.createImageData(canvas.width, canvas.height);
+    const d   = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const v = Math.random() * 255 | 0;
+      d[i] = d[i+1] = d[i+2] = v;
+      d[i+3] = 200;
+    }
+    ctx.putImageData(img, 0, 0);
+    staticRaf = requestAnimationFrame(drawStatic);
+  }
+  function stopStatic() {
+    if (staticRaf) { cancelAnimationFrame(staticRaf); staticRaf = null; }
+    if (canvas) { canvas.classList.add("hide"); }
+    overlay.classList.remove("phase-static");
+  }
+  function glitchPulse() {
+    if (canvas) {
+      canvas.classList.remove("glitch");
+      void canvas.offsetWidth;
+      canvas.classList.add("glitch");
+    }
+    if (tvCh) tvCh.textContent = "CH 0" + (Math.floor(Math.random() * 9));
+  }
+
+  // ── Séquence ──────────────────────────────────────────────────────
+  overlay.classList.remove("hidden");
+  requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add("show")));
+
+  setTimeout(() => {
+    overlay.classList.add("phase-static");
+    drawStatic();
+    if (canvas) canvas.classList.add("show");
+    glitchPulse();
+  }, 80);
+
+  setTimeout(glitchPulse, 320);
+  setTimeout(glitchPulse, 560);
+
+  setTimeout(() => { if (flash) { flash.classList.remove("pulse"); void flash.offsetWidth; flash.classList.add("pulse"); } }, 880);
+
+  setTimeout(() => {
+    stopStatic();
+    if (video) { video.currentTime = 0; video.play().catch(() => {}); }
+    if (scene) scene.classList.add("show");
+    overlay.classList.add("phase-cine");
+  }, 900);
+
+  setTimeout(() => {
+    if (scene) scene.classList.add("recede");
+  }, 3800);
+
+  setTimeout(() => {
+    overlay.classList.remove("phase-cine");
+    overlay.classList.add("phase-cine-out");
+  }, 4600);
+
+  setTimeout(() => {
+    if (glow) glow.classList.add("show");
+  }, 5200);
+
+  setTimeout(() => {
+    if (glow) glow.classList.add("fade");
+  }, 6800);
+
+  setTimeout(() => {
+    if (blackout) blackout.classList.add("show");
+  }, 7400);
+
+  setTimeout(() => window.location.reload(), 8900);
+}
 
   // ── Canvas TV static ──────────────────────────────────────────────
   let staticRaf = null;
@@ -2628,50 +2706,7 @@ async function bootApp() {
      Un overlay sombre s'affiche brièvement avec 5 pastilles qui
      s'allument en vert une par une (80ms d'intervalle), puis l'app
      s'ouvre avec un fondu. Durée totale : ~700ms. */
-  await new Promise(resolve => {
-    const splash = document.createElement("div");
-    splash.style.cssText = `
-      position:fixed; inset:0; z-index:99999;
-      background:#0a0d12;
-      display:flex; flex-direction:column;
-      align-items:center; justify-content:center; gap:24px;
-    `;
-    splash.innerHTML = `
-      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:22px; color:#fff; letter-spacing:.05em;">
-        ZEEV<span style="color:#22c55e;">CARS</span>
-      </div>
-      <div id="boot-lights" style="display:flex; gap:10px;">
-        ${[0,1,2,3,4].map(i => `<div data-light="${i}" style="
-          width:14px; height:14px; border-radius:50%;
-          background:#1a2a1a; border:2px solid #22c55e22;
-          transition: background .15s, box-shadow .15s;
-        "></div>`).join('')}
-      </div>
-      <div style="font-size:10px; color:#555; letter-spacing:.1em; text-transform:uppercase;">Initialisation…</div>
-    `;
-    document.body.appendChild(splash);
 
-    const lights = splash.querySelectorAll("[data-light]");
-    let i = 0;
-    const interval = setInterval(() => {
-      if (i < lights.length) {
-        lights[i].style.background = "#22c55e";
-        lights[i].style.boxShadow = "0 0 10px #22c55e, 0 0 20px #22c55e66";
-        i++;
-      } else {
-        clearInterval(interval);
-        setTimeout(() => {
-          splash.style.transition = "opacity .35s";
-          splash.style.opacity = "0";
-          setTimeout(() => { splash.remove(); resolve(); }, 380);
-        }, 150);
-      }
-    }, 80);
-  });
-
-  /* ── Animation feux verts ──────────────────────────────────────────
-     3 feux s'allument de gauche à droite (comme un démarrage) avant
-     que l'app apparaisse. Durée totale : ~900ms. */
   await new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.style.cssText = `
