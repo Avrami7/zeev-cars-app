@@ -512,32 +512,6 @@ body::before {
 .closing-overlay.phase-cine .cine-bar { height: 9%; }
 .closing-overlay.phase-cine-out .cine-bar { height: 0; transition-duration: 1.6s; }
 
-/* ── Feux F1 — écran de démarrage après login ───────────────────────── */
-#f1-lights-overlay {
-  position: fixed; inset: 0; z-index: 99999;
-  background: #0a0a0a;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 36px;
-  opacity: 1; transition: opacity .6s ease;
-}
-#f1-lights-overlay.fade-out { opacity: 0; pointer-events: none; }
-.f1-lights-row { display: flex; gap: 22px; }
-.f1-light {
-  width: 56px; height: 56px; border-radius: 50%;
-  background: #1a0000; border: 3px solid #2a0000;
-  box-shadow: 0 0 0 0 rgba(220,0,0,0);
-  transition: background .06s, box-shadow .06s, border-color .06s;
-}
-.f1-light.on {
-  background: #cc0000; border-color: #ff3333;
-  box-shadow: 0 0 20px 8px rgba(200,0,0,.75), 0 0 50px 16px rgba(200,0,0,.35);
-}
-.f1-brand {
-  font-size: 11px; font-weight: 800; letter-spacing: .3em;
-  text-transform: uppercase; color: #333;
-  font-family: -apple-system, sans-serif;
-}
-.f1-brand b { color: #cc0000; }
 
 /* ── Phase 2-4 : Scène Lotus ───────────────────────────────────────── */
 .lotus-scene {
