@@ -4136,14 +4136,14 @@ function renderConcessionPanel(concession, tableId, kpiId) {
   const headers = restricted
     ? ["N°", "Client", "Conducteur", "Modèle / Version", "Immat.", "VIN",
        "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
-       "Remarques", "Source", "Dernière MAJ"]
+       "Éligibilité facturation", "Remarques", "Dernière MAJ"]
     : ["N°", "Client", "Conducteur", "Modèle / Version", "Immat.", "VIN",
        "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
        "Valeur de vente du véhicule HT (€)",
        "Statut paiement", "Date paiement reçu", "Statut facturation", "N° facture", "Date facture",
        simulation ? "Commission HT (simulation)" : "Commission HT",
        ...(simulation ? [] : ["Pénalité de retard (Art.8)"]),
-       "Éligibilité", "Facture", "Remarques", "Source", "Dernière MAJ"];
+       "Éligibilité facturation", "Facture", "Remarques", "Dernière MAJ"];
 
   const COMPUTED_HEADER_HINT = "Colonne calculée automatiquement — non modifiable directement. Voir l'infobulle de chaque ligne pour le détail.";
   const isComputedHeader = h => h === "Éligibilité" || h.startsWith("Commission HT") || h.startsWith("Pénalité de retard");
@@ -4203,14 +4203,19 @@ function renderConcessionPanel(concession, tableId, kpiId) {
           : "Aucun retard constaté : soit la facture n'est pas encore émise/en retard, soit déjà payée.";
         html += `<td class="num" data-col="penalite" title="${penaltyHint}">${penalty ? fmtEUR(penalty.total) : "—"}</td>`;
       }
-      html += `<td data-col="eligibilite" title="${esc(eligibiliteHint(v))}">${badge(eligibilite, LABELS.eligibilite, BADGE_CLASS)}</td>`;
+      /* Éligibilité facturation — version colorée avec libellés clairs */
+      const eligColor = eligibilite === "FACTURABLE" ? "var(--gr)" :
+                        eligibilite === "ATTENTE_LIVRAISON" ? "#c98a13" :
+                        eligibilite === "ATTENTE_PV" ? "#c98a13" : "var(--tx3)";
+      const eligLabel = eligibilite === "FACTURABLE" ? "Livré — paiement à vérifier" :
+                        eligibilite === "ATTENTE_LIVRAISON" ? "En attente de livraison" :
+                        eligibilite === "ATTENTE_PV" ? "En attente de PV signé" : eligibilite;
+      html += `<td data-col="eligibilite" title="${esc(eligibiliteHint(v))}" style="font-weight:600; color:${eligColor};">${esc(eligLabel)}</td>`;
       html += `<td><button type="button" class="invoice-btn" data-invoice-id="${esc(v.id)}"
         ${canInvoice ? "" : "disabled"} title="${invoiceTitle}" aria-label="Imprimer la facture">🖨</button></td>`;
     }
 
     html += cellInput(v.id, "remarques", v.remarques, true, "text");
-    html += cellInput(v.id, "source",    v.source,    canEdit, "text");
-
     html += `<td class="cell-maj">${v.maj_le ? esc(v.maj_le) + "<br><span class='maj-par'>" + esc(v.maj_par) + "</span>" : ""}</td>`;
     html += `</tr>`;
   });
