@@ -2758,40 +2758,6 @@ async function bootApp() {
   });
 
   document.getElementById("auth-overlay").classList.add("hidden");
-
-  /* ── Séquence feux F1 avant d'ouvrir l'app ──────────────────────────
-     5 feux rouges qui s'allument un par un (400ms entre chaque),
-     puis s'éteignent tous ensemble après une pause — like a real race start. */
-  await new Promise(resolve => {
-    const overlay = document.createElement("div");
-    overlay.id = "f1-lights-overlay";
-    overlay.innerHTML = `
-      <div class="f1-brand">ZEEV <b>CARS</b></div>
-      <div class="f1-lights-row">
-        ${[1,2,3,4,5].map(i => `<div class="f1-light" id="f1-l${i}"></div>`).join("")}
-      </div>
-      <div class="f1-brand" style="font-size:9px; letter-spacing:.15em; color:#222;">SYSTEMS GO</div>
-    `;
-    document.body.appendChild(overlay);
-
-    const lights = [1,2,3,4,5].map(i => document.getElementById(`f1-l${i}`));
-    let i = 0;
-    const onInterval = setInterval(() => {
-      if (i < lights.length) { lights[i].classList.add("on"); i++; }
-      else {
-        clearInterval(onInterval);
-        /* Pause 600ms tous allumés, puis extinction et ouverture */
-        setTimeout(() => {
-          lights.forEach(l => l.classList.remove("on"));
-          setTimeout(() => {
-            overlay.classList.add("fade-out");
-            setTimeout(() => { overlay.remove(); resolve(); }, 600);
-          }, 200);
-        }, 600);
-      }
-    }, 380);
-  });
-
   document.getElementById("app-screen").classList.remove("hidden");
 
   const labelEl = document.getElementById("current-user-label");
