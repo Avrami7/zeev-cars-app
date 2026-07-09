@@ -1338,7 +1338,6 @@ td.num { text-align: right; font-family: var(--mono); }
         <div class="f1-col"><div class="f1-light" id="l2"></div></div>
         <div class="f1-col"><div class="f1-light" id="l3"></div></div>
         <div class="f1-col"><div class="f1-light" id="l4"></div></div>
-        <div class="f1-col"><div class="f1-light" id="l5"></div></div>
       </div>
     </div>
 
@@ -2443,7 +2442,7 @@ async function handleGithubCallback() {
     /* Animation séquentielle : feux verts un par un de gauche à droite,
        puis ouverture de l'app après le dernier feu. */
     await new Promise(resolve => {
-      const ids = ['l1','l2','l3','l4','l5'];
+      const ids = ['l1','l2','l3','l4'];
       if (window.f1GoRed) f1GoRed(); // éteindre d'abord
       let i = 0;
       function lightNextGreen() {
