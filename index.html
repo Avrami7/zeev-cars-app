@@ -1380,6 +1380,7 @@ td.num { text-align: right; font-family: var(--mono); }
     </div>
     <div class="tb-right">
       <span id="sync-status" class="sync-pill" aria-live="polite" aria-atomic="true">—</span>
+      <span id="sync-detail" class="field-hint" aria-live="polite" style="margin-left:4px;white-space:nowrap;"></span>
       <div class="tb-sep" role="separator"></div>
       <button id="theme-btn" class="tb-btn" type="button" title="Basculer thème clair / sombre">Thème clair</button>
       <button id="reload-btn" class="tb-btn" type="button" title="Recharger depuis GitHub">
@@ -1521,7 +1522,9 @@ td.num { text-align: right; font-family: var(--mono); }
               aria-label="Taux de commission Ford en pourcentage" data-source="state.contracts.FORD_VILLENEUVE.rate (transmis par le Worker)">
             <span class="param-text">%</span>
           </div>
-          <span class="field-hint" id="ford-rate-hint">Valeur de travail non persistée sur GitHub — réinitialisée à chaque session.</span>
+          <div class="bandeau bandeau-warn" id="ford-rate-hint" role="alert" style="margin-bottom:0; margin-top:8px; font-size:11px; padding:8px 10px;">
+            Valeur de travail non persistée sur GitHub — réinitialisée à chaque session.
+          </div>
         </div>
         <div class="card">
           <label>Base de calcul</label>
@@ -2504,11 +2507,56 @@ function tryRestoreSession() {
   return true;
 }
 
+/* Confirmation stylée réutilisable — remplace window.confirm() pour rester
+   cohérent avec la modale de suppression de concession (même charte visuelle,
+   inline styles avec les variables --bg2/--rd/--sur3/--brd2/--tx*). Retourne
+   une Promise<boolean> : true si l'utilisateur confirme, false sinon. */
+function appConfirm(message, opts) {
+  opts = opts || {};
+  const title = opts.title || "Confirmer";
+  const confirmLabel = opts.confirmLabel || "Continuer";
+  const cancelLabel = opts.cancelLabel || "Annuler";
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position:fixed; inset:0; background:rgba(0,0,0,.72); backdrop-filter:blur(4px);
+      z-index:9999; display:flex; align-items:center; justify-content:center;
+    `;
+    const box = document.createElement('div');
+    box.style.cssText = `
+      background:var(--bg2); border:1px solid var(--rd); border-radius:16px;
+      padding:28px 32px; max-width:420px; width:90%; box-shadow:var(--sh-3);
+    `;
+    box.innerHTML = `
+      <div style="font-size:15px; font-weight:800; margin-bottom:14px; color:var(--rd);">${esc(title)}</div>
+      <div style="font-size:12px; color:var(--tx2); margin-bottom:22px; line-height:1.6;">${esc(message)}</div>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button id="app-confirm-cancel" type="button"
+          style="padding:8px 18px; border:1px solid var(--brd2); border-radius:8px; background:transparent;
+                 color:var(--tx2); font-family:var(--font); font-size:11px; cursor:pointer;">
+          ${esc(cancelLabel)}
+        </button>
+        <button id="app-confirm-ok" type="button"
+          style="padding:8px 18px; border:none; border-radius:8px; background:var(--rd);
+                 color:#fff; font-family:var(--font); font-size:11px; cursor:pointer; font-weight:700;">
+          ${esc(confirmLabel)}
+        </button>
+      </div>
+    `;
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    const finish = (result) => { overlay.remove(); resolve(result); };
+    box.querySelector('#app-confirm-cancel').addEventListener('click', () => finish(false));
+    box.querySelector('#app-confirm-ok').addEventListener('click', () => finish(true));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(false); });
+  });
+}
+
 document.getElementById("logout-btn").addEventListener("click", () => performLogout(false));
 
-function performLogout(silent) {
+async function performLogout(silent) {
   if (!silent && state.dirty &&
-      !confirm("Des modifications non enregistrées seront perdues. Se déconnecter quand même ?")) return;
+      !(await appConfirm("Des modifications non enregistrées seront perdues. Se déconnecter quand même ?", {title: "Se déconnecter ?", confirmLabel: "Se déconnecter"}))) return;
   try {
     localStorage.removeItem("zeev_session");
     sessionStorage.removeItem("zeev_session");
@@ -2661,7 +2709,7 @@ function setupExport() {
     try {
       await apiExportCsv();
     } catch (e) {
-      alert(e.message || "Export impossible.");
+      toast(e.message || "Export impossible.", "error");
     } finally {
       btn.disabled = false;
     }
@@ -2704,7 +2752,7 @@ function setSyncStatus(text, type = "") {
 
 function setupReload() {
   document.getElementById("reload-btn").addEventListener("click", async () => {
-    if (state.dirty && !confirm("Des modifications non enregistrées seront perdues. Recharger quand même ?")) return;
+    if (state.dirty && !(await appConfirm("Des modifications non enregistrées seront perdues. Recharger quand même ?", {title: "Recharger ?", confirmLabel: "Recharger"}))) return;
     const url = new URL(window.location.href);
     url.searchParams.set("v", Date.now());
     window.location.replace(url.toString());
@@ -3207,6 +3255,32 @@ function setupSave() {
    être appelée aussi par l'enregistrement automatique (toutes les 10 min).
    silent=true : pas de toast si rien à enregistrer (évite un bruit visuel
    répété toutes les 10 minutes quand il n'y a rien de nouveau). */
+/* Suivi de l'horodatage de sauvegarde — affiché en toutes lettres à côté de
+   la pastille de statut, pour ne plus laisser l'utilisateur deviner si son
+   travail est vraiment enregistré. Purement informatif, ne change rien au
+   comportement de sauvegarde existant. */
+let lastSavedAt = null;
+let nextAutoSaveAt = null;
+
+function formatElapsedMinutes(ms) {
+  const min = Math.round(ms / 60000);
+  if (min <= 0) return "à l'instant";
+  if (min === 1) return "il y a 1 min";
+  return `il y a ${min} min`;
+}
+
+function updateSyncDetail() {
+  const el = document.getElementById("sync-detail");
+  if (!el) return;
+  const parts = [];
+  if (lastSavedAt) parts.push(`Enregistré ${formatElapsedMinutes(Date.now() - lastSavedAt)}`);
+  if (nextAutoSaveAt) {
+    const remain = Math.max(0, Math.round((nextAutoSaveAt - Date.now()) / 60000));
+    parts.push(`prochain auto-save dans ${remain} min`);
+  }
+  el.textContent = parts.join(" · ");
+}
+
 async function performSave(silent) {
   if (!state.dirty) { if (!silent) toast("Aucune modification à enregistrer."); return; }
   const btn = document.getElementById("save-btn");
@@ -3219,6 +3293,8 @@ async function performSave(silent) {
     state.dirty = false;
     updateSaveBtn();
     setSyncStatus("Synchronisé", "ok");
+    lastSavedAt = Date.now();
+    updateSyncDetail();
     toast(
       silent
         ? "Enregistrement automatique effectué."
@@ -3240,9 +3316,13 @@ async function performSave(silent) {
    déclenche que s'il y a réellement des modifications non enregistrées. */
 function setupAutoSave() {
   const TEN_MINUTES = 10 * 60 * 1000;
+  nextAutoSaveAt = Date.now() + TEN_MINUTES;
+  updateSyncDetail();
   setInterval(() => {
     if (state.dirty) performSave(true);
+    nextAutoSaveAt = Date.now() + TEN_MINUTES;
   }, TEN_MINUTES);
+  setInterval(updateSyncDetail, 30000);
 }
 
 /* =====================================================================
@@ -3254,7 +3334,7 @@ function renderAll() {
   renderSuivi();
   renderKpiDashboard();
   document.getElementById("footer-info").textContent =
-    `${state.data.vehicules.length} véhicules — dernière synchronisation locale : ${nowStamp()}`;
+    `${state.data.vehicules.filter(v => !v.archived).length} véhicules — dernière synchronisation locale : ${nowStamp()}`;
   /* Réinjection systématique des poignées de redimensionnement après chaque
      rendu — les tableaux étant reconstruits entièrement via innerHTML, les
      poignées précédemment injectées disparaissent et doivent être remises. */
@@ -3270,7 +3350,7 @@ function renderAll() {
 }
 
 function getVehicules(concession) {
-  return state.data.vehicules.filter(v => v.concession === concession);
+  return state.data.vehicules.filter(v => v.concession === concession && !v.archived);
 }
 
 function renderKPI(containerId, vehicules, simulation = false) {
@@ -3360,7 +3440,7 @@ function renderKpiDashboard() {
     bandeau.textContent = "Vue globale — " + parts.join(" · ");
   }
 
-  const vehicules = state.data.vehicules.filter(v => toutesLesconcessions.includes(v.concession));
+  const vehicules = state.data.vehicules.filter(v => toutesLesconcessions.includes(v.concession) && !v.archived);
 
   // KPI toujours disponibles
   const nbTotal       = vehicules.length;
@@ -4145,14 +4225,14 @@ function renderConcessionPanel(concession, tableId, kpiId) {
   const headers = restricted
     ? ["N°", "Client", "Conducteur", "Modèle / Version", "Immat.", "VIN",
        "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
-       "N° de contrat", "Éligibilité facturation", "Remarques", "Dernière MAJ"]
+       "N° de contrat", "Éligibilité facturation", "Remarques", "Dernière MAJ", "Retirer"]
     : ["N°", "Client", "Conducteur", "Modèle / Version", "Immat.", "VIN",
        "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
        "Valeur de vente du véhicule HT (€)",
        "Statut paiement", "Date paiement reçu", "Statut facturation", "N° facture", "Date facture",
        simulation ? "Commission HT (simulation)" : "Commission HT",
        ...(simulation ? [] : ["Pénalité de retard (Art.8)"]),
-       "N° de contrat", "Éligibilité facturation", "Facture", "Remarques", "Dernière MAJ"];
+       "N° de contrat", "Éligibilité facturation", "Facture", "Remarques", "Dernière MAJ", "Retirer"];
 
   const COMPUTED_HEADER_HINT = "Colonne calculée automatiquement — non modifiable directement. Voir l'infobulle de chaque ligne pour le détail.";
   const isComputedHeader = h => h === "Éligibilité" || h.startsWith("Commission HT") || h.startsWith("Pénalité de retard");
@@ -4227,6 +4307,8 @@ function renderConcessionPanel(concession, tableId, kpiId) {
 
     html += cellInput(v.id, "remarques", v.remarques, true, "text");
     html += `<td class="cell-maj">${v.maj_le ? esc(v.maj_le) + "<br><span class='maj-par'>" + esc(v.maj_par) + "</span>" : ""}</td>`;
+    html += `<td><button type="button" class="tb-btn danger sm archive-vehicle-btn" data-archive-id="${esc(v.id)}"
+      title="Retirer ce véhicule de l'interface (données conservées sur Cloudflare et GitHub)" aria-label="Retirer ce véhicule">🗑</button></td>`;
     html += `</tr>`;
   });
 
@@ -4237,6 +4319,32 @@ function renderConcessionPanel(concession, tableId, kpiId) {
   document.getElementById(tableId).querySelectorAll("[data-invoice-id]").forEach(btn => {
     btn.addEventListener("click", () => printInvoice(btn.dataset.invoiceId, concession));
   });
+
+  document.getElementById(tableId).querySelectorAll("[data-archive-id]").forEach(btn => {
+    btn.addEventListener("click", () => archiveVehicle(btn.dataset.archiveId));
+  });
+}
+
+/* Retrait d'un véhicule de l'interface — n'efface RIEN côté données : pose
+   uniquement v.archived = true, exactement la même logique de principe que
+   le retrait de concession dans l'admin (masqué, jamais supprimé). Le
+   véhicule reste dans state.data.vehicules et sera bien renvoyé à
+   apiSaveData au prochain enregistrement, donc conservé sur GitHub. */
+async function archiveVehicle(id) {
+  const v = (state.data.vehicules || []).find(x => x.id === id);
+  if (!v) { toast("Véhicule introuvable.", "error"); return; }
+  const label = [v.client, v.modele].filter(Boolean).join(" — ") || v.id;
+  const ok = await appConfirm(
+    `Retirer "${label}" de l'interface ? Les données restent conservées sur Cloudflare et GitHub — le véhicule disparaît seulement des tableaux et des indicateurs.`,
+    { title: "Retirer ce véhicule ?", confirmLabel: "Retirer" }
+  );
+  if (!ok) return;
+  v.archived = true;
+  state.dirty = true;
+  updateSaveBtn();
+  setSyncStatus("Modifications non enregistrées", "dirty");
+  renderAll();
+  toast(`"${label}" retiré de l'interface. Pensez à enregistrer.`, "ok");
 }
 
 function cellInput(id, field, value, editable, type) {
@@ -4332,7 +4440,7 @@ function attachCellHandlers(tableId, concession) {
 }
 
 function renderSuivi() {
-  const vehicules = state.data.vehicules;
+  const vehicules = state.data.vehicules.filter(v => !v.archived);
   renderKPI("kpi-suivi", vehicules);
 
   const headers = ["Marque", "Concession", "Client", "Conducteur", "Modèle / Version", "Immat.", "Statut livraison", "Date livraison (effective ou estimée)", "Source"];
