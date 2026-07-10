@@ -1,6 +1,6 @@
 {
   "meta": {
-    "derniere_maj": "2026-07-09"
+    "derniere_maj": "2026-07-10"
   },
   "vehicules": [
     {
@@ -128,7 +128,7 @@
       "marque": "BMW",
       "raison_sociale": "CH. POZZI",
       "vin": "",
-      "valeur_vente_ht": null,
+      "valeur_vente_ht": 54916.67,
       "statut_paiement": "NON_PAYE",
       "statut_facturation": "NON_FACTURE",
       "pv_signe": "SIGNE",
@@ -136,8 +136,8 @@
       "numero_facture": "",
       "date_facture": "",
       "source": "",
-      "maj_par": "",
-      "maj_le": "",
+      "maj_par": "ZEEV ",
+      "maj_le": "2026-07-10 14:38",
       "id": "bmw-006",
       "client": "SIEMENS GAMESA RENEWABLE",
       "conducteur": "Sebastien Secco",
