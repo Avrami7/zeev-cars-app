@@ -4445,6 +4445,12 @@ function attachCellHandlers(tableId, concession) {
 
       const row = table.querySelector(`tr[data-id="${id}"]`);
       if (row) {
+        /* Corrige le fait que la mise en vert de la ligne (row-livre) ne se
+           déclenchait qu'au prochain rendu complet — désormais synchronisée
+           immédiatement à chaque changement de statut livraison. */
+        if (field === "statut_livraison") {
+          row.classList.toggle("row-livre", val === "LIVRE");
+        }
         const commission  = simulation ? computeCommissionSimulation(v) : computeCommission(v);
         const eligibilite = computeEligibilite(v);
         const commissionCell  = row.querySelector('[data-col="commission"]');
