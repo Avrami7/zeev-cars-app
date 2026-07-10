@@ -1445,12 +1445,6 @@ table.data-table tbody tr.row-livre select {
   </div>
 
   <nav class="nav" role="tablist" aria-label="Onglets concessions">
-    <button class="ntab active" role="tab" aria-selected="true" aria-controls="panel-bmw" data-tab="bmw" id="tab-bmw">
-      Facturation BMW Ch.Pozzi
-    </button>
-    <button class="ntab" role="tab" aria-selected="false" aria-controls="panel-ford" data-tab="ford" id="tab-ford">
-      Facturation Ford Villeneuve
-    </button>
     <button class="ntab" role="tab" aria-selected="false" aria-controls="panel-kpi" data-tab="kpi" id="tab-kpi">
       Tableau de bord
     </button>
@@ -1466,119 +1460,11 @@ table.data-table tbody tr.row-livre select {
     <div id="print-header" class="print-only" aria-hidden="true"></div>
 
 
-    <!-- ============== PANEL BMW ============== -->
-    <section id="panel-bmw" class="tab-panel active" role="tabpanel" aria-labelledby="tab-bmw" data-concession="BMW_POZZI">
-      <div class="bandeau bandeau-ok" role="note">
-        Entité à facturer : <strong>CH. POZZI</strong> — SIREN 525580288 — SIRET 52558028800146<br>
-        12-14 Place du Général Koenig, 75017 Paris — Convention d'apporteur d'affaires signée le
-        <strong id="bmw-contract-date" data-source="state.contracts.BMW_POZZI.signedDate (transmis par le Worker)">—</strong>
-      </div>
-      <div class="bandeau bandeau-warn hidden" id="bmw-contract-alert" role="alert"></div>
-
-      <div class="params-row" id="params-bmw">
-        <div class="card">
-          <label>Taux de commission contractuel
-            <span class="param-lock" title="Taux contractuel : source unique CONTRACTS (Worker), non modifiable en interface">🔒</span>
-          </label>
-          <div class="rate-row">
-            <input type="number" step="0.01" min="0" max="100" class="rate-input" id="rate-bmw" value="" disabled
-              aria-label="Taux de commission BMW en pourcentage, valeur contractuelle non modifiable" data-source="state.contracts.BMW_POZZI.rate (transmis par le Worker)">
-            <span class="param-text">%</span>
-          </div>
-        </div>
-        <div class="card">
-          <label>Base de calcul</label>
-          <span class="param-text">LLD/LOA : montant HT total du contrat de location signé (Art.5 al.2)</span>
-        </div>
-        <div class="card">
-          <label>Condition de déclenchement</label>
-          <span class="param-text">Livraison effective + PV de mise à disposition signé (Art.5)</span>
-        </div>
-      </div>
-
-      <div class="panel-actions">
-        <button type="button" class="tb-btn consolidated-invoice-btn" data-concession="BMW_POZZI" id="consolidated-invoice-btn-bmw">
-          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm6.293-2.707a1 1 0 001.414 0l4-4a1 1 0 10-1.414-1.414L11 11.586V3a1 1 0 10-2 0v8.586L6.707 9.293a1 1 0 10-1.414 1.414l4 4z" clip-rule="evenodd"/></svg>
-          Facture consolidée
-        </button>
-        <button type="button" class="tb-btn kpi-client-btn" data-concession="BMW_POZZI">
-          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
-          Analyse client
-        </button>
-        <button type="button" class="tb-btn add-vehicle-btn" data-concession="BMW_POZZI">
-          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/></svg>
-          Ajouter un véhicule
-        </button>
-      </div>
-
-      <div class="kpi-row" id="kpi-bmw" role="region" aria-label="Indicateurs BMW CH. Pozzi"></div>
-
-      <div class="table-scroll-top" id="scroll-top-bmw"><div class="table-scroll-top-spacer"></div></div>
-      <div class="table-wrap" id="table-wrap-bmw">
-        <table class="data-table" id="table-bmw" aria-label="Véhicules BMW CH. Pozzi"></table>
-      </div>
-    </section>
-
-    <!-- ============== PANEL FORD ============== -->
-    <section id="panel-ford" class="tab-panel" role="tabpanel" aria-labelledby="tab-ford" data-concession="FORD_VILLENEUVE" hidden>
-      <div class="bandeau bandeau-ok hidden" id="ford-banner-real" role="note">
-        Entité à facturer : <strong>VILLENEUVE AUTOMOBILES</strong> — SIREN 308622224 — SIRET 30862222400027<br>
-        Bd de l'Ouest, 59650 Villeneuve d'Ascq — Convention d'apporteur d'affaires signée le
-        <strong id="ford-contract-date" data-source="state.contracts.FORD_VILLENEUVE.signedDate (transmis par le Worker)">—</strong>
-      </div>
-      <div class="bandeau bandeau-warn" id="ford-banner-sim" role="alert">
-        Aucune convention d'apporteur d'affaires signée avec Villeneuve Automobiles à ce jour.<br>
-        Cet onglet est une simulation de travail — aucun montant n'est exigible tant qu'aucun contrat n'est signé.<br>
-        Entité identifiée : VILLENEUVE AUTOMOBILES — SIREN 308622224 — SIRET 30862222400027 — Bd de l'Ouest, 59650 Villeneuve d'Ascq
-      </div>
-      <div class="bandeau bandeau-warn hidden" id="ford-contract-alert" role="alert"></div>
-
-      <div class="params-row" id="params-ford">
-        <div class="card">
-          <label>Taux de commission
-            <span class="param-lock hidden" id="ford-rate-lock" title="Taux contractuel : source unique CONTRACTS (Worker), non modifiable en interface">🔒</span>
-          </label>
-          <div class="rate-row">
-            <input type="number" step="0.01" min="0" max="100" class="rate-input" id="rate-ford" value=""
-              aria-label="Taux de commission Ford en pourcentage" data-source="state.contracts.FORD_VILLENEUVE.rate (transmis par le Worker)">
-            <span class="param-text">%</span>
-          </div>
-          <div class="bandeau bandeau-warn" id="ford-rate-hint" role="alert" style="margin-bottom:0; margin-top:8px; font-size:11px; padding:8px 10px;">
-            Valeur de travail non persistée sur GitHub — réinitialisée à chaque session.
-          </div>
-        </div>
-        <div class="card">
-          <label>Base de calcul</label>
-          <span class="param-text" id="ford-base-calcul">Non définie contractuellement — simulation uniquement</span>
-        </div>
-        <div class="card">
-          <label>Condition de déclenchement</label>
-          <span class="param-text" id="ford-condition-declenchement">Non définie — aucun contrat signé</span>
-        </div>
-      </div>
-
-      <div class="panel-actions">
-        <button type="button" class="tb-btn consolidated-invoice-btn hidden" data-concession="FORD_VILLENEUVE" id="consolidated-invoice-btn-ford">
-          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm6.293-2.707a1 1 0 001.414 0l4-4a1 1 0 10-1.414-1.414L11 11.586V3a1 1 0 10-2 0v8.586L6.707 9.293a1 1 0 10-1.414 1.414l4 4z" clip-rule="evenodd"/></svg>
-          Facture consolidée
-        </button>
-        <button type="button" class="tb-btn kpi-client-btn" data-concession="FORD_VILLENEUVE">
-          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
-          Analyse client
-        </button>
-        <button type="button" class="tb-btn add-vehicle-btn" data-concession="FORD_VILLENEUVE">
-          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/></svg>
-          Ajouter un véhicule
-        </button>
-      </div>
-
-      <div class="kpi-row" id="kpi-ford" role="region" aria-label="Indicateurs Ford Villeneuve"></div>
-
-      <div class="table-scroll-top" id="scroll-top-ford"><div class="table-scroll-top-spacer"></div></div>
-      <div class="table-wrap" id="table-wrap-ford">
-        <table class="data-table" id="table-ford" aria-label="Véhicules Ford Villeneuve"></table>
-      </div>
-    </section>
+    <!-- Les panels de concession (BMW, Ford, et toute future concession) sont
+         générés dynamiquement par renderConcessionTabs() juste avant
+         #panel-admin, à partir de CONCESSION_LEGAL_INFO — voir index_work
+         du 10/07/2026. Ne plus ajouter de section statique ici : créer une
+         concession depuis l'Admin suffit désormais. -->
 
     <!-- ============== MODAL KPI CLIENT ============== -->
     <dialog id="kpi-client-dialog" aria-labelledby="kpi-client-title">
@@ -2035,80 +1921,67 @@ function decodeSessionToken(token) {
    ===================================================================== */
 function applyContractConfig() {
   if (!state.contracts) return; // compte restreint : rien à injecter, le bloc est masqué
-  const bmw  = state.contracts.BMW_POZZI;
-  const ford = state.contracts.FORD_VILLENEUVE;
 
-  const dateEl = document.getElementById("bmw-contract-date");
-  if (dateEl) dateEl.textContent = bmw.signedDate ? fmtDateISOtoFR(bmw.signedDate) : "—";
+  /* Généralisé le 10/07/2026 : cette boucle remplace les deux blocs BMW/Ford
+     précédemment dupliqués à la main. Dès qu'une concession est présente
+     dans CONCESSION_LEGAL_INFO (créée depuis l'Admin ou déjà existante),
+     son bandeau réel/simulation, son taux, sa base de calcul et sa condition
+     de déclenchement se mettent à jour automatiquement — aucune duplication
+     de code n'est plus nécessaire pour une nouvelle concession. */
+  concessionKeys().forEach(key => {
+    const slug = slugFor(key);
+    const contract = state.contracts[key];
+    if (!contract) return; // concession connue côté interface mais pas encore transmise par le Worker
+    const info = CONCESSION_LEGAL_INFO[key] || { nom: key };
+    /* Défaut sécurisé (repris du comportement d'origine BMW) : une
+       concession est considérée signée/réelle tant que le Worker ne
+       transmet pas explicitement locked === false. Un champ absent ou une
+       ancienne version du Worker ne doit jamais déverrouiller un taux par
+       défaut — il faut une autorisation explicite et positive, jamais
+       l'inverse. */
+    const signed = contract.locked !== false;
 
-  const rateBmwEl = document.getElementById("rate-bmw");
-  if (rateBmwEl) {
-    rateBmwEl.value = Number(bmw.rate).toFixed(2);
-    /* Le verrou suit désormais l'indicateur réel transmis par le Worker
-       (source unique : CONTRACTS.BMW_POZZI.locked dans index.js), au lieu
-       d'un attribut figé dans le HTML. Repli sécurisé : si jamais le Worker
-       ne renvoyait pas explicitement locked === false (ex. ancienne version
-       du Worker, champ absent), le champ reste verrouillé par défaut — il
-       faut une autorisation explicite et positive pour le déverrouiller,
-       jamais l'inverse. */
-    rateBmwEl.disabled = bmw.locked !== false;
-    rateBmwEl.title = rateBmwEl.disabled
-      ? `Taux contractuel verrouillé côté serveur (${bmw.rate}%)`
-      : `Taux contractuel (${bmw.rate}%) — déverrouillé côté serveur (CONTRACTS.BMW_POZZI.locked = false)`;
-  }
+    const dateEl = document.getElementById(`${slug}-contract-date`);
+    if (dateEl) dateEl.textContent = contract.signedDate ? fmtDateISOtoFR(contract.signedDate) : "—";
 
-  applyContractEndDateAlert("bmw-contract-alert", bmw, "BMW Ch.Pozzi");
+    const bannerReal = document.getElementById(`${slug}-banner-real`);
+    const bannerSim  = document.getElementById(`${slug}-banner-sim`);
+    if (bannerReal) bannerReal.classList.toggle("hidden", !signed);
+    if (bannerSim)  bannerSim.classList.toggle("hidden", signed);
 
-  /* Ford Villeneuve — généralisation : dès que le Worker transmet
-     locked === true pour cette concession (après signature réelle du
-     contrat), tout le panneau bascule automatiquement en mode "réel" :
-     bandeau, taux verrouillé, base de calcul, condition de déclenchement,
-     bouton facture consolidée. Aucune autre modification de code n'est
-     nécessaire — seul CONTRACTS.FORD_VILLENEUVE doit être mis à jour côté
-     Worker (rate, signedDate, locked: true, contratRef), exactement comme
-     cela a été fait pour BMW. */
-  const fordSigned = ford && ford.locked === true;
-
-  const fordBannerReal = document.getElementById("ford-banner-real");
-  const fordBannerSim  = document.getElementById("ford-banner-sim");
-  if (fordBannerReal) fordBannerReal.classList.toggle("hidden", !fordSigned);
-  if (fordBannerSim)  fordBannerSim.classList.toggle("hidden", fordSigned);
-
-  const fordDateEl = document.getElementById("ford-contract-date");
-  if (fordDateEl) fordDateEl.textContent = ford.signedDate ? fmtDateISOtoFR(ford.signedDate) : "—";
-
-  const rateFordEl = document.getElementById("rate-ford");
-  const fordLockEl = document.getElementById("ford-rate-lock");
-  const fordHintEl = document.getElementById("ford-rate-hint");
-  if (rateFordEl) {
-    if (fordSigned || rateFordEl.value === "") {
-      rateFordEl.value = Number(ford.rate).toFixed(2);
+    const rateEl  = document.getElementById(`rate-${slug}`);
+    const lockEl  = document.getElementById(`${slug}-rate-lock`);
+    const hintEl  = document.getElementById(`${slug}-rate-hint`);
+    if (rateEl) {
+      if (signed || rateEl.value === "") {
+        rateEl.value = Number(contract.rate).toFixed(2);
+      }
+      rateEl.disabled = signed;
+      rateEl.title = signed
+        ? `Taux contractuel verrouillé côté serveur (${contract.rate}%)`
+        : `Taux de commission ${esc(CONCESSION_LABELS[key] || key)} en pourcentage — simulation locale, non sauvegardée`;
     }
-    rateFordEl.disabled = fordSigned;
-    rateFordEl.title = fordSigned
-      ? `Taux contractuel verrouillé côté serveur (${ford.rate}%)`
-      : `Taux de commission Ford en pourcentage — simulation locale, non sauvegardée`;
-  }
-  if (fordLockEl) fordLockEl.classList.toggle("hidden", !fordSigned);
-  if (fordHintEl) fordHintEl.classList.toggle("hidden", fordSigned);
+    if (lockEl) lockEl.classList.toggle("hidden", !signed);
+    if (hintEl) hintEl.classList.toggle("hidden", signed);
 
-  const fordBaseCalculEl = document.getElementById("ford-base-calcul");
-  if (fordBaseCalculEl) {
-    fordBaseCalculEl.textContent = fordSigned
-      ? "LLD/LOA : montant HT total du contrat de location signé (Art.5 al.2)"
-      : "Non définie contractuellement — simulation uniquement";
-  }
-  const fordConditionEl = document.getElementById("ford-condition-declenchement");
-  if (fordConditionEl) {
-    fordConditionEl.textContent = fordSigned
-      ? "Livraison effective + PV de mise à disposition signé (Art.5)"
-      : "Non définie — aucun contrat signé";
-  }
+    const baseCalculEl = document.getElementById(`${slug}-base-calcul`);
+    if (baseCalculEl) {
+      baseCalculEl.textContent = signed
+        ? "LLD/LOA : montant HT total du contrat de location signé (Art.5 al.2)"
+        : "Non définie contractuellement — simulation uniquement";
+    }
+    const conditionEl = document.getElementById(`${slug}-condition-declenchement`);
+    if (conditionEl) {
+      conditionEl.textContent = signed
+        ? "Livraison effective + PV de mise à disposition signé (Art.5)"
+        : "Non définie — aucun contrat signé";
+    }
 
-  const fordInvoiceBtn = document.getElementById("consolidated-invoice-btn-ford");
-  if (fordInvoiceBtn) fordInvoiceBtn.classList.toggle("hidden", !fordSigned);
+    const invoiceBtn = document.getElementById(`consolidated-invoice-btn-${slug}`);
+    if (invoiceBtn) invoiceBtn.classList.toggle("hidden", !signed);
 
-  applyContractEndDateAlert("ford-contract-alert", ford, "Ford Villeneuve");
+    applyContractEndDateAlert(`${slug}-contract-alert`, contract, CONCESSION_LABELS[key] || key);
+  });
 }
 
 /* Alerte d'échéance de contrat — purement informative. N'active ni ne
@@ -2216,7 +2089,7 @@ function tauxConcession(concessionKey) {
     return Number(state.contracts[concessionKey].rate) / 100;
   }
   /* Source 2 : champ HTML éditable (simulation locale) */
-  const id = concessionKey === "BMW_POZZI" ? "rate-bmw" : "rate-ford";
+  const id = "rate-" + slugFor(concessionKey);
   const el = document.getElementById(id);
   const v  = parseFloat(el ? el.value : 0);
   return isNaN(v) ? 0 : v / 100;
@@ -2751,6 +2624,7 @@ async function reloadData() {
 
     state.dirty = false;
     updateSaveBtn();
+    renderConcessionTabs();
     applyContractConfig();
     setSyncStatus("Synchronisé", "ok");
     renderAll();
@@ -2813,10 +2687,21 @@ function setupReload() {
    IMPRESSION
    ===================================================================== */
 const PANEL_PRINT_LABEL = {
-  "panel-bmw":   "Facturation BMW Ch.Pozzi",
-  "panel-ford":  "Facturation Ford Villeneuve (simulation — non contractuel)",
   "panel-suivi": "All Vehicle Ordered",
 };
+
+function printLabelFor(activePanel) {
+  if (!activePanel) return "Suivi flotte";
+  if (PANEL_PRINT_LABEL[activePanel.id]) return PANEL_PRINT_LABEL[activePanel.id];
+  const key = activePanel.dataset.concession;
+  if (key) {
+    const label    = CONCESSION_LABELS[key] || key;
+    const contract = state.contracts && state.contracts[key];
+    const signed   = contract && contract.locked === true;
+    return signed ? `Facturation ${label}` : `Facturation ${label} (simulation — non contractuel)`;
+  }
+  return "Suivi flotte";
+}
 
 function setupPrint() {
   const btn = document.getElementById("print-btn");
@@ -2841,7 +2726,7 @@ function setupPrint() {
       }
     }
 
-    const label = (activePanel && PANEL_PRINT_LABEL[activePanel.id]) || "Suivi flotte";
+    const label = printLabelFor(activePanel);
     const header = document.getElementById("print-header");
     if (header) {
       header.textContent =
@@ -2885,6 +2770,166 @@ const CONCESSION_LEGAL_INFO = {
     identifiants: "SIREN 308 622 224 — SIRET 308 622 224 00027",
   },
 };
+
+/* =====================================================================
+   GÉNÉRATION DYNAMIQUE DES ONGLETS DE CONCESSION — demande explicite du
+   10/07/2026 : tout ce qui est déjà en place pour BMW/Ford (mise en vert
+   des lignes Livré, bouton Retirer, carte Commission scindée, bandeau
+   Ford, indicateur d'enregistrement...) doit s'activer automatiquement
+   pour toute nouvelle concession créée depuis l'Admin, sans dupliquer de
+   code HTML/JS à la main comme c'était le cas jusqu'ici pour BMW/Ford.
+   CONCESSION_LEGAL_INFO reste la source unique de vérité pour la liste des
+   concessions existantes (déjà utilisée ainsi par l'Admin et le KPI global
+   avant cette modification — seuls les onglets/tableaux ne suivaient pas).
+   Limite connue : une concession créée aujourd'hui ne survit pas à un
+   rechargement de page tant que le Worker ne renvoie pas sa liste au
+   démarrage (aucun accès de déploiement Worker disponible pour corriger
+   ce point dans cette session — voir point #08 de l'audit UX). */
+function concessionKeys() {
+  return Object.keys(CONCESSION_LEGAL_INFO);
+}
+
+function slugFor(key) {
+  return key.split("_")[0].toLowerCase();
+}
+
+function panelTemplate(key, isActive) {
+  const slug  = slugFor(key);
+  const label = esc(CONCESSION_LABELS[key] || key);
+  const info  = CONCESSION_LEGAL_INFO[key] || { nom: key, adresseLigne1: "", adresseLigne2: "", identifiants: "" };
+  return `
+    <section id="panel-${slug}" class="tab-panel${isActive ? " active" : ""}" role="tabpanel" aria-labelledby="tab-${slug}" data-concession="${esc(key)}" data-dynamic-concession="true"${isActive ? "" : " hidden"}>
+      <div class="bandeau bandeau-ok hidden" id="${slug}-banner-real" role="note">
+        Entité à facturer : <strong>${esc(info.nom)}</strong> — ${esc(info.identifiants)}<br>
+        ${esc(info.adresseLigne1)}, ${esc(info.adresseLigne2)} — Convention d'apporteur d'affaires signée le
+        <strong id="${slug}-contract-date">—</strong>
+      </div>
+      <div class="bandeau bandeau-warn" id="${slug}-banner-sim" role="alert">
+        Aucune convention d'apporteur d'affaires signée avec ${esc(info.nom)} à ce jour.<br>
+        Cet onglet est une simulation de travail — aucun montant n'est exigible tant qu'aucun contrat n'est signé.<br>
+        Entité identifiée : ${esc(info.nom)} — ${esc(info.identifiants)} — ${esc(info.adresseLigne1)}, ${esc(info.adresseLigne2)}
+      </div>
+      <div class="bandeau bandeau-warn hidden" id="${slug}-contract-alert" role="alert"></div>
+
+      <div class="params-row" id="params-${slug}">
+        <div class="card">
+          <label>Taux de commission
+            <span class="param-lock hidden" id="${slug}-rate-lock" title="Taux contractuel : source unique CONTRACTS (Worker), non modifiable en interface">🔒</span>
+          </label>
+          <div class="rate-row">
+            <input type="number" step="0.01" min="0" max="100" class="rate-input" id="rate-${slug}" value=""
+              aria-label="Taux de commission ${label} en pourcentage" data-source="state.contracts.${esc(key)}.rate (transmis par le Worker)">
+            <span class="param-text">%</span>
+          </div>
+          <div class="bandeau bandeau-warn" id="${slug}-rate-hint" role="alert" style="margin-bottom:0; margin-top:8px; font-size:11px; padding:8px 10px;">
+            Valeur de travail non persistée sur GitHub — réinitialisée à chaque session.
+          </div>
+        </div>
+        <div class="card">
+          <label>Base de calcul</label>
+          <span class="param-text" id="${slug}-base-calcul">Non définie contractuellement — simulation uniquement</span>
+        </div>
+        <div class="card">
+          <label>Condition de déclenchement</label>
+          <span class="param-text" id="${slug}-condition-declenchement">Non définie — aucun contrat signé</span>
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <button type="button" class="tb-btn consolidated-invoice-btn hidden" data-concession="${esc(key)}" id="consolidated-invoice-btn-${slug}">
+          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm6.293-2.707a1 1 0 001.414 0l4-4a1 1 0 10-1.414-1.414L11 11.586V3a1 1 0 10-2 0v8.586L6.707 9.293a1 1 0 10-1.414 1.414l4 4z" clip-rule="evenodd"/></svg>
+          Facture consolidée
+        </button>
+        <button type="button" class="tb-btn kpi-client-btn" data-concession="${esc(key)}">
+          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
+          Analyse client
+        </button>
+        <button type="button" class="tb-btn add-vehicle-btn" data-concession="${esc(key)}">
+          <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/></svg>
+          Ajouter un véhicule
+        </button>
+      </div>
+
+      <div class="kpi-row" id="kpi-${slug}" role="region" aria-label="Indicateurs ${label}"></div>
+
+      <div class="table-scroll-top" id="scroll-top-${slug}"><div class="table-scroll-top-spacer"></div></div>
+      <div class="table-wrap" id="table-wrap-${slug}">
+        <table class="data-table" id="table-${slug}" aria-label="Véhicules ${label}"></table>
+      </div>
+    </section>`;
+}
+
+function bindTabButton(btn) {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".ntab").forEach(b => {
+      b.classList.remove("active");
+      b.setAttribute("aria-selected", "false");
+    });
+    document.querySelectorAll(".tab-panel").forEach(p => {
+      p.classList.remove("active");
+      p.hidden = true;
+    });
+    btn.classList.add("active");
+    btn.setAttribute("aria-selected", "true");
+    const panel = document.getElementById("panel-" + btn.dataset.tab);
+    panel.classList.add("active");
+    panel.hidden = false;
+  });
+  btn.addEventListener("keydown", (e) => {
+    const tabs = [...document.querySelectorAll(".ntab")];
+    const idx  = tabs.indexOf(e.currentTarget);
+    if (e.key === "ArrowRight") { tabs[(idx + 1) % tabs.length].focus(); e.preventDefault(); }
+    if (e.key === "ArrowLeft")  { tabs[(idx - 1 + tabs.length) % tabs.length].focus(); e.preventDefault(); }
+  });
+}
+
+/* Ne touche au DOM que si la liste des concessions a réellement changé —
+   évite de recréer les onglets (et donc de perdre leurs écouteurs) à
+   chaque simple rechargement de données. */
+let lastRenderedConcessionKeys = null;
+function renderConcessionTabs() {
+  const tabKpiBtn  = document.getElementById("tab-kpi");
+  const panelAdmin = document.getElementById("panel-admin");
+  if (!tabKpiBtn || !panelAdmin) return;
+
+  const keys = concessionKeys();
+  const signature = keys.join("|");
+  if (signature === lastRenderedConcessionKeys) return;
+  lastRenderedConcessionKeys = signature;
+
+  const previousActive = document.querySelector(".ntab.active")?.dataset.tab || null;
+
+  document.querySelectorAll('[data-dynamic-concession="true"]').forEach(el => el.remove());
+
+  const tabsHTML = keys.map((key, i) => {
+    const slug = slugFor(key);
+    const isActive = previousActive ? previousActive === slug : i === 0;
+    const label = esc(CONCESSION_LABELS[key] || key);
+    return `<button class="ntab${isActive ? " active" : ""}" role="tab" aria-selected="${isActive}" aria-controls="panel-${slug}" data-tab="${slug}" data-dynamic-concession="true" id="tab-${slug}">
+      ${label}
+    </button>`;
+  }).join("");
+  tabKpiBtn.insertAdjacentHTML("beforebegin", tabsHTML);
+
+  const panelsHTML = keys.map((key, i) => {
+    const slug = slugFor(key);
+    const isActive = previousActive ? previousActive === slug : i === 0;
+    return panelTemplate(key, isActive);
+  }).join("");
+  panelAdmin.insertAdjacentHTML("beforebegin", panelsHTML);
+
+  document.querySelectorAll('[data-dynamic-concession="true"].ntab').forEach(bindTabButton);
+  keys.forEach(key => {
+    const rateEl = document.getElementById("rate-" + slugFor(key));
+    if (rateEl) rateEl.addEventListener("input", renderAll);
+  });
+  if (typeof setupTwinScrollbar === "function") {
+    keys.forEach(key => {
+      const slug = slugFor(key);
+      setupTwinScrollbar(`scroll-top-${slug}`, `table-wrap-${slug}`);
+    });
+  }
+}
 
 async function printInvoice(id, concession) {
   const contract = state.contracts && state.contracts[concession];
@@ -3007,7 +3052,6 @@ function addDaysIso(iso, days) {
 }
 
 function setupConsolidatedInvoice() {
-  const buttons       = document.querySelectorAll(".consolidated-invoice-btn");
   const dialog        = document.getElementById("consolidated-invoice-dialog");
   const closeBtn      = document.getElementById("consolidated-invoice-dialog-close");
   const listEl        = document.getElementById("consolidated-invoice-list");
@@ -3017,7 +3061,7 @@ function setupConsolidatedInvoice() {
   const numeroEl       = document.getElementById("ci-numero");
   const emissionEl     = document.getElementById("ci-emission");
   const echeanceEl     = document.getElementById("ci-echeance");
-  if (!buttons.length || !dialog) return;
+  if (!dialog) return;
 
   let currentConcession = null; // déterminée au clic, selon le bouton utilisé
 
@@ -3054,8 +3098,9 @@ function setupConsolidatedInvoice() {
     dialog.showModal();
   }
 
-  buttons.forEach(btn => {
-    btn.addEventListener("click", () => openDialog(btn.dataset.concession));
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".consolidated-invoice-btn");
+    if (btn) openDialog(btn.dataset.concession);
   });
   closeBtn.addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
@@ -3207,6 +3252,8 @@ function setupTwinScrollbar(topId, wrapId) {
   const top  = document.getElementById(topId);
   const wrap = document.getElementById(wrapId);
   if (!top || !wrap) return;
+  if (wrap.dataset.twinScrollbarBound === "true") return; // déjà lié — évite un double-binding (jitter de scroll)
+  wrap.dataset.twinScrollbarBound = "true";
   const spacer = top.querySelector(".table-scroll-top-spacer");
   const table  = wrap.querySelector("table");
   if (!spacer || !table) return;
@@ -3231,41 +3278,19 @@ function setupTwinScrollbar(topId, wrapId) {
 }
 
 function setupTwinScrollbars() {
-  setupTwinScrollbar("scroll-top-bmw",   "table-wrap-bmw");
-  setupTwinScrollbar("scroll-top-ford",  "table-wrap-ford");
+  concessionKeys().forEach(key => {
+    const slug = slugFor(key);
+    setupTwinScrollbar(`scroll-top-${slug}`, `table-wrap-${slug}`);
+  });
   setupTwinScrollbar("scroll-top-suivi", "table-wrap-suivi");
 }
 
 function setupTabs() {
-  document.querySelectorAll(".ntab").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".ntab").forEach(b => {
-        b.classList.remove("active");
-        b.setAttribute("aria-selected", "false");
-      });
-      document.querySelectorAll(".tab-panel").forEach(p => {
-        p.classList.remove("active");
-        p.hidden = true;
-      });
-      btn.classList.add("active");
-      btn.setAttribute("aria-selected", "true");
-      const panel = document.getElementById("panel-" + btn.dataset.tab);
-      panel.classList.add("active");
-      panel.hidden = false;
-    });
-
-    /* Navigation clavier dans la tablist (flèches gauche/droite) */
-    btn.addEventListener("keydown", (e) => {
-      const tabs = [...document.querySelectorAll(".ntab")];
-      const idx  = tabs.indexOf(e.currentTarget);
-      if (e.key === "ArrowRight") { tabs[(idx + 1) % tabs.length].focus(); e.preventDefault(); }
-      if (e.key === "ArrowLeft")  { tabs[(idx - 1 + tabs.length) % tabs.length].focus(); e.preventDefault(); }
-    });
-  });
-
-  ["rate-bmw", "rate-ford"].forEach(id => {
-    document.getElementById(id).addEventListener("input", renderAll);
-  });
+  /* Les onglets de concession dynamiques sont déjà liés dans
+     renderConcessionTabs() (bindTabButton) — on ne lie ici que les onglets
+     statiques (Tableau de bord, Admin, All Vehicle Ordered) pour éviter un
+     double-binding (double bascule au clic, double envoi de renderAll). */
+  document.querySelectorAll('.ntab:not([data-dynamic-concession="true"])').forEach(bindTabButton);
 }
 
 function setupSave() {
@@ -3350,8 +3375,12 @@ function setupAutoSave() {
    RENDU
    ===================================================================== */
 function renderAll() {
-  renderConcessionPanel("BMW_POZZI",      "table-bmw",   "kpi-bmw");
-  renderConcessionPanel("FORD_VILLENEUVE","table-ford",  "kpi-ford");
+  concessionKeys().forEach(key => {
+    const slug = slugFor(key);
+    if (document.getElementById(`table-${slug}`)) {
+      renderConcessionPanel(key, `table-${slug}`, `kpi-${slug}`);
+    }
+  });
   renderSuivi();
   renderKpiDashboard();
   document.getElementById("footer-info").textContent =
@@ -3871,10 +3900,15 @@ function setupAdminForm() {
       document.getElementById('admin-worker-code').textContent = block;
       document.getElementById('admin-worker-preview').classList.remove('hidden');
 
-      /* 4. Rafraîchir la liste des concessions */
+      /* 4. Rafraîchir la liste des concessions ET l'onglet correspondant —
+         c'est précisément le point qui manquait avant le 10/07/2026 : la
+         concession apparaissait dans l'Admin mais jamais comme onglet
+         utilisable tant qu'on n'avait pas dupliqué du HTML à la main. */
       renderAdminConcessions();
+      renderConcessionTabs();
+      renderAll();
 
-      toast(`Concession "${v.label}" créée avec succès. Copiez le bloc Worker et déployez dans Cloudflare.`, 'ok');
+      toast(`Concession "${v.label}" créée et onglet disponible immédiatement. Il reste à copier le bloc Worker et le déployer dans Cloudflare pour activer la facturation réelle.`, 'ok');
 
       /* Réinitialiser le formulaire */
       ['key','label','nom','forme','adr1','adr2','siren','siret'].forEach(id => {
@@ -4196,11 +4230,11 @@ function renderKpiClientDialog(concession) {
 }
 
 function setupKpiClientButtons() {
-  document.querySelectorAll('.kpi-client-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (isRestricted()) { toast('Accès restreint — vue KPI non disponible en mode LIVRAISON_ONLY.', 'error'); return; }
-      renderKpiClientDialog(btn.dataset.concession);
-    });
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.kpi-client-btn');
+    if (!btn) return;
+    if (isRestricted()) { toast('Accès restreint — vue KPI non disponible en mode LIVRAISON_ONLY.', 'error'); return; }
+    renderKpiClientDialog(btn.dataset.concession);
   });
   document.getElementById('kpi-client-close').addEventListener('click', () => {
     document.getElementById('kpi-client-dialog').close();
@@ -4249,7 +4283,7 @@ function renderConcessionPanel(concession, tableId, kpiId) {
      taux/base de calcul/condition de déclenchement est entièrement masqué —
      pas seulement vidé, pour qu'aucun pourcentage ne soit visible même dans
      le DOM. */
-  const paramsBlock = document.getElementById(concession === "BMW_POZZI" ? "params-bmw" : "params-ford");
+  const paramsBlock = document.getElementById(`params-${slugFor(concession)}`);
   if (paramsBlock) paramsBlock.classList.toggle("hidden", restricted);
 
   /* Tout est modifiable manuellement, sans verrou par rôle. Seuls restent en lecture seule les champs qui sont le
@@ -4441,7 +4475,7 @@ function attachCellHandlers(tableId, concession) {
       state.dirty = true;
       updateSaveBtn();
 
-      renderKPI(concession === "BMW_POZZI" ? "kpi-bmw" : "kpi-ford", getVehicules(concession));
+      renderKPI(`kpi-${slugFor(concession)}`, getVehicules(concession));
 
       const row = table.querySelector(`tr[data-id="${id}"]`);
       if (row) {
@@ -4866,7 +4900,7 @@ const CONCESSION_LABELS = {
 };
 
 function nextVehicleId(concession) {
-  const prefix = concession === "BMW_POZZI" ? "bmw" : "ford";
+  const prefix = slugFor(concession);
   let max = 0;
   state.data.vehicules.forEach(v => {
     const m = /^([a-z]+)-(\d+)$/.exec(v.id || "");
@@ -4884,14 +4918,14 @@ function setupAddVehicle() {
 
   let currentConcession = null;
 
-  document.querySelectorAll(".add-vehicle-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      currentConcession = btn.dataset.concession;
-      concLabel.textContent = CONCESSION_LABELS[currentConcession] || currentConcession;
-      form.reset();
-      dialog.showModal();
-      document.getElementById("av-client").focus();
-    });
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".add-vehicle-btn");
+    if (!btn) return;
+    currentConcession = btn.dataset.concession;
+    concLabel.textContent = CONCESSION_LABELS[currentConcession] || currentConcession;
+    form.reset();
+    dialog.showModal();
+    document.getElementById("av-client").focus();
   });
   closeBtn.addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
