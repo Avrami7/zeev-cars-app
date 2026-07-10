@@ -1710,6 +1710,24 @@ table.data-table tbody tr.row-livre select {
         </select>
       </div>
       <div class="auth-field">
+        <label class="auth-lbl" for="av-date-livraison">Date de livraison (effective ou estimée)</label>
+        <input class="auth-inp" type="date" id="av-date-livraison">
+      </div>
+      <div class="auth-field">
+        <label class="auth-lbl" for="av-pv-signe">PV de mise à disposition signé</label>
+        <select class="auth-sel" id="av-pv-signe">
+          <option value="NON_SIGNE" selected>Non signé</option>
+          <option value="SIGNE">Signé</option>
+        </select>
+      </div>
+      <div class="auth-field">
+        <label class="auth-lbl" for="av-valeur-vente">Valeur de vente du véhicule HT (€)</label>
+        <input class="auth-inp" type="number" step="0.01" min="0" id="av-valeur-vente">
+      </div>
+      <div class="bandeau bandeau-info" id="av-eligibilite-checklist" role="status" style="font-size:11px; padding:8px 10px; margin-bottom:14px;">
+        0/3 conditions réunies pour être Facturable — voir ci-dessous.
+      </div>
+      <div class="auth-field">
         <label class="auth-lbl" for="av-source">Source</label>
         <input class="auth-inp" id="av-source">
       </div>
@@ -2181,6 +2199,22 @@ function computeLatePenalty(v) {
    purement informatif, ne change aucune règle de calcul. Répond à une
    confusion légitime : "Éligibilité" est un résultat dérivé, pas un champ à
    remplir directement (contrairement à ses 3 colonnes sources). */
+function eligibiliteCellInner(v) {
+  const eligibilite = computeEligibilite(v);
+  const eligColor = eligibilite === "FACTURABLE" ? "var(--gr)" :
+                    eligibilite === "ATTENTE_LIVRAISON" ? "#c98a13" :
+                    eligibilite === "ATTENTE_PV" ? "#c98a13" : "var(--tx3)";
+  const eligLabel = eligibilite === "FACTURABLE" ? "Livré — paiement à vérifier" :
+                    eligibilite === "ATTENTE_LIVRAISON" ? "En attente de livraison" :
+                    eligibilite === "ATTENTE_PV" ? "En attente de PV signé" : eligibilite;
+  const eligParts = [v.statut_livraison === "LIVRE", v.pv_signe === "SIGNE", !!v.valeur_vente_ht];
+  const eligCount = eligParts.filter(Boolean).length;
+  const eligBadgeBg = eligCount === 3 ? "var(--gr-bg)" : "var(--am-bg)";
+  const eligBadgeTx = eligCount === 3 ? "var(--gr)" : "var(--am)";
+  return `<span style="font-weight:600; color:${eligColor};">${esc(eligLabel)}</span>
+    <span style="display:inline-block; margin-left:6px; font-size:10px; font-weight:700; padding:1px 6px; border-radius:20px; background:${eligBadgeBg}; color:${eligBadgeTx}; vertical-align:middle;">${eligCount}/3</span>`;
+}
+
 function eligibiliteHint(v) {
   const checks = [
     { label: "Statut livraison = Livré",            ok: v.statut_livraison === "LIVRE" },
@@ -4363,14 +4397,7 @@ function renderConcessionPanel(concession, tableId, kpiId) {
         html += `<td class="num" data-col="penalite" title="${penaltyHint}">${penalty ? fmtEUR(penalty.total) : "—"}</td>`;
       }
       html += cellInput(v.id, "numero_contrat", v.numero_contrat, canEdit, "text");
-      /* Éligibilité facturation — version colorée avec libellés clairs */
-      const eligColor = eligibilite === "FACTURABLE" ? "var(--gr)" :
-                        eligibilite === "ATTENTE_LIVRAISON" ? "#c98a13" :
-                        eligibilite === "ATTENTE_PV" ? "#c98a13" : "var(--tx3)";
-      const eligLabel = eligibilite === "FACTURABLE" ? "Livré — paiement à vérifier" :
-                        eligibilite === "ATTENTE_LIVRAISON" ? "En attente de livraison" :
-                        eligibilite === "ATTENTE_PV" ? "En attente de PV signé" : eligibilite;
-      html += `<td data-col="eligibilite" title="${esc(eligibiliteHint(v))}" style="font-weight:600; color:${eligColor};">${esc(eligLabel)}</td>`;
+      html += `<td data-col="eligibilite" title="${esc(eligibiliteHint(v))}">${eligibiliteCellInner(v)}</td>`;
       html += `<td><button type="button" class="invoice-btn" data-invoice-id="${esc(v.id)}"
         ${canInvoice ? "" : "disabled"} title="${invoiceTitle}" aria-label="Imprimer la facture">🖨</button></td>`;
     }
@@ -4492,7 +4519,7 @@ function attachCellHandlers(tableId, concession) {
         const penaliteCell    = row.querySelector('[data-col="penalite"]');
         if (commissionCell)  commissionCell.textContent  = fmtEUR(commission);
         if (eligibiliteCell) {
-          eligibiliteCell.innerHTML = badge(eligibilite, LABELS.eligibilite, BADGE_CLASS);
+          eligibiliteCell.innerHTML = eligibiliteCellInner(v);
           eligibiliteCell.title     = eligibiliteHint(v);
         }
         if (penaliteCell) {
@@ -4914,9 +4941,37 @@ function setupAddVehicle() {
   const closeBtn    = document.getElementById("add-vehicle-dialog-close");
   const form        = document.getElementById("add-vehicle-form");
   const concLabel   = document.getElementById("add-vehicle-concession-label");
+  const checklistEl = document.getElementById("av-eligibilite-checklist");
   if (!dialog || !form) return;
 
   let currentConcession = null;
+
+  /* Checklist en direct — demande explicite (audit UX #04) : le formulaire
+     ne collectait pas les 3 champs qui déterminent Facturable et ne donnait
+     aucune visibilité sur ce qu'il manquait avant de devoir aller chercher
+     dans le tableau. Ne change aucune règle de calcul — computeEligibilite()
+     reste l'unique source de vérité, ceci n'est qu'un aperçu anticipé. */
+  function updateChecklist() {
+    if (!checklistEl) return;
+    const statutOk = document.getElementById("av-statut").value === "LIVRE";
+    const pvOk      = document.getElementById("av-pv-signe").value === "SIGNE";
+    const valeurOk  = !!document.getElementById("av-valeur-vente").value;
+    const count = [statutOk, pvOk, valeurOk].filter(Boolean).length;
+    const manquants = [];
+    if (!statutOk) manquants.push("Statut livraison = Livré");
+    if (!pvOk)     manquants.push("PV de mise à disposition = Signé");
+    if (!valeurOk) manquants.push("Valeur de vente renseignée");
+    checklistEl.textContent = count === 3
+      ? "3/3 — ce véhicule sera immédiatement Facturable dès l'ajout."
+      : `${count}/3 conditions réunies pour être Facturable — il manque : ${manquants.join(" · ")}.`;
+    checklistEl.className = "bandeau " + (count === 3 ? "bandeau-ok" : "bandeau-info");
+    checklistEl.style.cssText = "font-size:11px; padding:8px 10px; margin-bottom:14px;";
+  }
+  ["av-statut", "av-pv-signe", "av-valeur-vente"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", updateChecklist);
+    if (el) el.addEventListener("change", updateChecklist);
+  });
 
   document.addEventListener("click", (e) => {
     const btn = e.target.closest(".add-vehicle-btn");
@@ -4924,6 +4979,7 @@ function setupAddVehicle() {
     currentConcession = btn.dataset.concession;
     concLabel.textContent = CONCESSION_LABELS[currentConcession] || currentConcession;
     form.reset();
+    updateChecklist();
     dialog.showModal();
     document.getElementById("av-client").focus();
   });
@@ -4936,15 +4992,16 @@ function setupAddVehicle() {
     if (!client) { document.getElementById("av-client").focus(); return; }
 
     const defaults = CONCESSION_DEFAULTS[currentConcession] || {};
+    const valeurVenteRaw = document.getElementById("av-valeur-vente").value;
     const vehicule = {
       concession: currentConcession,
       marque: defaults.marque || "",
       raison_sociale: defaults.raison_sociale || "",
       vin: "",
-      valeur_vente_ht: null,
+      valeur_vente_ht: valeurVenteRaw === "" ? null : parseFloat(valeurVenteRaw),
       statut_paiement: "INCONNU",
       statut_facturation: "NON_FACTURE",
-      pv_signe: "NON_SIGNE",
+      pv_signe: document.getElementById("av-pv-signe").value,
       date_pv_signe: "",
       numero_facture: "",
       date_facture: "",
@@ -4957,7 +5014,7 @@ function setupAddVehicle() {
       modele: document.getElementById("av-modele").value.trim(),
       immat: document.getElementById("av-immat").value.trim(),
       statut_livraison: document.getElementById("av-statut").value,
-      date_livraison: "",
+      date_livraison: document.getElementById("av-date-livraison").value,
       remarques: document.getElementById("av-remarques").value.trim(),
     };
 
@@ -4967,7 +5024,8 @@ function setupAddVehicle() {
     renderAll();
     setSyncStatus("Modifications non enregistrées", "dirty");
     dialog.close();
-    toast(`Véhicule ${vehicule.id} ajouté (${client}). Pensez à enregistrer.`, "success");
+    const eligibleNow = computeEligibilite(vehicule) === "FACTURABLE";
+    toast(`Véhicule ${vehicule.id} ajouté (${client})${eligibleNow ? " — déjà Facturable" : ""}. Pensez à enregistrer.`, "success");
   });
 }
 
