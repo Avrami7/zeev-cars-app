@@ -1148,6 +1148,20 @@ td.editable { background: var(--pb); transition: background .25s var(--ease); }
 td.editable input, td.editable select { color: var(--ac2); font-weight: 700; }
 td.num { text-align: right; font-family: var(--mono); }
 
+/* Ligne entière surlignée en vert quand le véhicule est Livré — demande
+   explicite, pour repérer un statut en un coup d'œil sans lire chaque
+   cellule. N'affecte jamais le calcul d'Éligibilité (toujours basé sur
+   statut_livraison + pv_signe, indépendant de ce style purement visuel). */
+table.data-table tbody tr.row-livre > td {
+  background: var(--gr-bg);
+}
+table.data-table tbody tr.row-livre:hover > td {
+  background: var(--gr-bg);
+}
+table.data-table tbody tr.row-livre > td.editable {
+  background: var(--gr-bg);
+}
+
 /* =====================================================================
    FOOTER
    ===================================================================== */
@@ -4269,7 +4283,7 @@ function renderConcessionPanel(concession, tableId, kpiId) {
         ? "Aucune convention signée avec Villeneuve Automobiles — facture non disponible (simulation)"
         : "Disponible uniquement lorsque le véhicule est Facturable (livré + PV signé + valeur renseignée)";
 
-    html += `<tr data-id="${esc(v.id)}">`;
+    html += `<tr data-id="${esc(v.id)}"${v.statut_livraison === "LIVRE" ? ' class="row-livre"' : ""}>`;
     html += `<td>${i + 1}</td>`;
 
     html += cellInput(v.id, "client",     v.client,     canEdit, "text");
