@@ -3372,7 +3372,6 @@ function renderKPI(containerId, vehicules, simulation = false) {
   const livres             = vehicules.filter(v => v.statut_livraison === "LIVRE").length;
   const nonLivres          = total - livres;
   const facturables        = vehicules.filter(v => computeEligibilite(v) === "FACTURABLE").length;
-  const valeurVenteTotale  = vehicules.reduce((s, v) => s + (Number(v.valeur_vente_ht) || 0), 0);
 
   /* En simulation : on calcule sur la valeur dès qu'elle est renseignée,
      sans condition de livraison/PV — pour avoir des chiffres visibles. */
@@ -3417,7 +3416,6 @@ function renderKPI(containerId, vehicules, simulation = false) {
 
   const financialCards = `
     <div class="kpi-card"><div class="kpi-label">Facturables</div><div class="kpi-value gr">${facturables}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Valeur de vente totale (HT)</div><div class="kpi-value">${fmtEUR(valeurVenteTotale)}</div></div>
     <div class="kpi-card" title="Somme de la commission sur toutes les lignes ayant une valeur de vente HT renseignée, livrées ou non — vision globale du potentiel.">
       <div class="kpi-label">Commission HT totale${suffix}</div>
       <div class="kpi-value">${fmtEUR(commissionEstimeeToutesValeurs)}</div>
