@@ -3366,6 +3366,17 @@ function renderKPI(containerId, vehicules, simulation = false) {
   const commissionTotale   = vehicules.reduce((s, v) => s + calcComm(v), 0);
   const suffix             = simulation ? " (simulation)" : "";
 
+  /* Demande explicite : distinguer clairement deux chiffres différents —
+     1) la commission réellement facturable aujourd'hui (livré + PV signé +
+        valeur renseignée), qui ne bouge jamais avec le statut simulation ;
+     2) une estimation de ce que ça représenterait si TOUTES les lignes ayant
+        déjà une valeur de vente HT renseignée devenaient facturables — utile
+        pour projeter, sans jamais être confondue avec un montant exigible. */
+  const commissionFacturable = vehicules.reduce((s, v) => s + computeCommission(v), 0);
+  const commissionEstimeeToutesValeurs = vehicules
+    .filter(v => v.valeur_vente_ht)
+    .reduce((s, v) => s + Number(v.valeur_vente_ht) * tauxConcession(v.concession), 0);
+
   /* Suivi des règlements — demande explicite : pouvoir estimer combien est
      déjà encaissé, combien reste en attente, et le délai moyen constaté
      entre date de facture et date de paiement reçu (pour anticiper les
@@ -3393,7 +3404,13 @@ function renderKPI(containerId, vehicules, simulation = false) {
   const financialCards = `
     <div class="kpi-card"><div class="kpi-label">Facturables</div><div class="kpi-value gr">${facturables}</div></div>
     <div class="kpi-card"><div class="kpi-label">Valeur de vente totale (HT)</div><div class="kpi-value">${fmtEUR(valeurVenteTotale)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Commission HT totale${suffix}</div><div class="kpi-value">${fmtEUR(commissionTotale)}</div></div>
+    <div class="kpi-card" title="Somme de la commission sur toutes les lignes ayant une valeur de vente HT renseignée, livrées ou non — vision globale du potentiel.">
+      <div class="kpi-label">Commission HT totale${suffix}</div>
+      <div class="kpi-value">${fmtEUR(commissionEstimeeToutesValeurs)}</div>
+      <div class="kpi-sublabel" style="font-size:11px;color:var(--tx3);margin-top:4px;" title="Uniquement les véhicules Livré — paiement à vérifier (livré + PV signé + valeur renseignée) — seul montant réellement facturable aujourd'hui.">
+        Facturable (Livré — paiement à vérifier) : ${fmtEUR(commissionFacturable)}
+      </div>
+    </div>
     <div class="kpi-card" title="Commission des véhicules dont le statut paiement est « Payé ».">
       <div class="kpi-label">Commission encaissée${suffix}</div><div class="kpi-value gr">${fmtEUR(commissionEncaissee)}</div>
     </div>
