@@ -3422,7 +3422,7 @@ function renderKPI(containerId, vehicules, simulation = false) {
       <div class="kpi-label">Commission HT totale${suffix}</div>
       <div class="kpi-value">${fmtEUR(commissionEstimeeToutesValeurs)}</div>
       <div class="kpi-sublabel" style="font-size:11px;color:var(--tx3);margin-top:4px;" title="Uniquement les véhicules Livré — paiement à vérifier (livré + PV signé + valeur renseignée) — seul montant réellement facturable aujourd'hui.">
-        Facturable (Livré — paiement à vérifier) : ${fmtEUR(commissionFacturable)}
+        Facturable (Livré — paiement à vérifier) : <span style="color:var(--gr);font-weight:700;">${fmtEUR(commissionFacturable)}</span>
       </div>
     </div>
     <div class="kpi-card" title="Commission des véhicules dont le statut paiement est « Payé ».">
