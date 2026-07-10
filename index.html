@@ -1489,6 +1489,8 @@ table.data-table tbody tr.row-livre select {
         Les modifications effectuées ici impactent directement l'application pour tous les utilisateurs.
       </div>
 
+      <div class="bandeau bandeau-warn hidden" id="legal-rate-alert" role="alert"></div>
+
       <!-- ── SECTION : Concessions existantes ── -->
       <div class="admin-section">
         <div class="admin-section-title">Concessions enregistrées</div>
@@ -2151,6 +2153,11 @@ const LATE_PENALTY_CONFIG = {
   // Taux d'intérêt légal "professionnels" — 1er semestre 2026 (01/01 → 30/06/2026).
   // À VÉRIFIER ET METTRE À JOUR avant le 01/07/2026 puis chaque 01/01 et 01/07.
   legalRateProPct: 2.62,
+  // Bornes du semestre couvert par legalRateProPct — pilotent l'alerte
+  // automatique legalRateIsStale()/renderLegalRateAlert() ci-dessous.
+  // Format ISO, à décaler de 6 mois à chaque mise à jour du taux.
+  legalRateValidFrom:  "2026-01-01",
+  legalRateValidUntil: "2026-06-30",
   // Multiplicateur plancher fixé par l'Art. L441-10 du Code de commerce.
   penaltyMultiplier: 3,
   // Indemnité forfaitaire de recouvrement (Art.8 de la convention).
@@ -2158,6 +2165,31 @@ const LATE_PENALTY_CONFIG = {
   // Délai de paiement contractuel, en jours, à compter de la date de facture (Art.8).
   paymentTermDays: 15,
 };
+
+/* Alerte de péremption — demande explicite suite à l'audit critique du
+   10/07/2026 : ce taux ne peut pas être automatisé (source : arrêté publié
+   2×/an), mais rien ne prévenait auparavant quand il fallait le vérifier —
+   risque de pénalités calculées avec un taux périmé sans que personne ne
+   s'en aperçoive. Cette fonction ne change AUCUN calcul, elle affiche
+   seulement un rappel visuel dans l'Admin quand la date de validité est
+   dépassée. */
+function legalRateIsStale() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const validUntil = new Date(LATE_PENALTY_CONFIG.legalRateValidUntil + "T00:00:00");
+  return today > validUntil;
+}
+
+function renderLegalRateAlert() {
+  const el = document.getElementById("legal-rate-alert");
+  if (!el) return;
+  const stale = legalRateIsStale();
+  el.classList.toggle("hidden", !stale);
+  if (stale) {
+    el.innerHTML = `⚠️ <strong>Taux d'intérêt légal (pénalités de retard Art.8) potentiellement périmé.</strong><br>
+      Valeur actuelle : ${LATE_PENALTY_CONFIG.legalRateProPct}% — valide jusqu'au ${fmtDateISOtoFR(LATE_PENALTY_CONFIG.legalRateValidUntil)}, dépassé aujourd'hui.<br>
+      Vérifiez le taux en vigueur sur <a href="https://www.economie.gouv.fr/entreprises/interet-legal" target="_blank" rel="noopener">economie.gouv.fr</a> et mettez à jour <code>LATE_PENALTY_CONFIG</code> dans <code>index.html</code> (legalRateProPct, legalRateValidFrom, legalRateValidUntil).`;
+  }
+}
 
 /* Retourne { joursRetard, interet, indemnite, total } ou null si aucune
    facture émise, ou si le retard n'est pas encore constitué. Calcul
@@ -2586,6 +2618,14 @@ function playClosingAnimation() {
    BOOT
    ===================================================================== */
 async function bootApp() {
+  /* Garde-fou (audit critique du 10/07/2026) : bootApp() ajoute des
+     écouteurs globaux par délégation (add-vehicle-btn, consolidated-invoice-btn,
+     kpi-client-btn...) qui se dupliqueraient si jamais cette fonction était
+     appelée deux fois dans la même page (ex. restauration de session suivie
+     d'un second déclenchement). Aucun cas de ce type n'est connu aujourd'hui,
+     ce garde-fou est purement préventif. */
+  if (window.__zeevBooted) return;
+  window.__zeevBooted = true;
 
   document.getElementById("auth-overlay").classList.add("hidden");
   document.getElementById("app-screen").classList.remove("hidden");
@@ -3107,6 +3147,32 @@ function setupConsolidatedInvoice() {
     totalEl.textContent = fmtEUR(total);
   }
 
+  /* Numérotation automatique + détection de doublon — demande explicite
+     (audit UX #09). Unicité vérifiée sur TOUS les véhicules, toutes
+     concessions confondues (une facture ZEEV CARS est une seule série,
+     peu importe le fournisseur d'origine) — cohérent avec le format
+     F-AAAA-00X déjà utilisé en placeholder. Ne renumérote jamais un
+     numéro déjà attribué : uniquement une proposition à l'ouverture,
+     l'utilisateur reste libre de le modifier avant de générer. */
+  function nextInvoiceNumber() {
+    const year = new Date().getFullYear();
+    const prefix = `F-${year}-`;
+    let max = 0;
+    (state.data.vehicules || []).forEach(v => {
+      const m = /^F-(\d{4})-(\d+)$/.exec((v.numero_facture || "").trim());
+      if (m && Number(m[1]) === year) max = Math.max(max, parseInt(m[2], 10));
+    });
+    return prefix + String(max + 1).padStart(3, "0");
+  }
+
+  function isInvoiceNumberTaken(numero, excludeIds) {
+    const target = (numero || "").trim().toLowerCase();
+    if (!target) return false;
+    return (state.data.vehicules || []).some(v =>
+      !excludeIds.includes(v.id) &&
+      (v.numero_facture || "").trim().toLowerCase() === target);
+  }
+
   function openDialog(concession) {
     currentConcession = concession;
     const vehicules = getVehicules(concession).filter(v => computeEligibilite(v) === "FACTURABLE");
@@ -3116,7 +3182,7 @@ function setupConsolidatedInvoice() {
     }
     emissionEl.value = isoToday();
     echeanceEl.value = addDaysIso(isoToday(), 15);
-    numeroEl.value = "";
+    numeroEl.value = nextInvoiceNumber();
 
     listEl.innerHTML = vehicules.map(v => {
       const commission = computeCommission(v);
@@ -3146,18 +3212,43 @@ function setupConsolidatedInvoice() {
   generateBtn.addEventListener("click", async () => {
     const checked = Array.from(listEl.querySelectorAll('input[type="checkbox"]:checked'));
     if (checked.length === 0) { toast("Sélectionnez au moins un véhicule.", "error"); return; }
-    if (!numeroEl.value.trim()) { numeroEl.focus(); toast("Indiquez un numéro de facture.", "error"); return; }
+    const numero = numeroEl.value.trim();
+    if (!numero) { numeroEl.focus(); toast("Indiquez un numéro de facture.", "error"); return; }
 
     const ids = checked.map(cb => cb.dataset.id);
+
+    if (isInvoiceNumberTaken(numero, ids)) {
+      numeroEl.focus();
+      toast(`Le numéro "${numero}" est déjà utilisé par un autre véhicule. Suggestion : ${nextInvoiceNumber()}.`, "error");
+      return;
+    }
+
     const vehicules = ids.map(id => state.data.vehicules.find(x => x.id === id)).filter(Boolean);
     generateBtn.disabled = true;
     try {
       await renderConsolidatedInvoice({
-        numero: numeroEl.value.trim(),
+        numero,
         emission: emissionEl.value,
         echeance: echeanceEl.value,
         vehicules,
       });
+      /* Persiste le numéro/statut sur les véhicules facturés — corrige au
+         passage un vrai trou fonctionnel : la facture consolidée n'était
+         jusqu'ici jamais enregistrée sur les véhicules, ce qui rendait
+         possible de la regénérer indéfiniment pour les mêmes lignes sans
+         qu'aucun numéro ne soit jamais réellement bloqué. */
+      vehicules.forEach(v => {
+        v.numero_facture     = numero;
+        v.date_facture       = emissionEl.value;
+        v.statut_facturation = "FACTURE";
+        v.maj_par = state.user.name;
+        v.maj_le  = new Date().toISOString().slice(0, 16).replace("T", " ");
+      });
+      state.dirty = true;
+      updateSaveBtn();
+      renderAll();
+      setSyncStatus("Modifications non enregistrées", "dirty");
+      toast(`Facture ${numero} générée pour ${vehicules.length} véhicule(s). Pensez à enregistrer sur GitHub.`, "success");
       dialog.close();
     } catch (e) {
       toast("Impossible de générer la facture : " + e.message, "error");
@@ -3693,6 +3784,7 @@ function setupAdminTab() {
 }
 
 function renderAdminConcessions() {
+  renderLegalRateAlert();
   const list = document.getElementById('admin-concessions-list');
   if (!list) return;
   const concessions = Object.keys(CONCESSION_LEGAL_INFO);
@@ -4513,7 +4605,6 @@ function attachCellHandlers(tableId, concession) {
           row.classList.toggle("row-livre", val === "LIVRE");
         }
         const commission  = simulation ? computeCommissionSimulation(v) : computeCommission(v);
-        const eligibilite = computeEligibilite(v);
         const commissionCell  = row.querySelector('[data-col="commission"]');
         const eligibiliteCell = row.querySelector('[data-col="eligibilite"]');
         const penaliteCell    = row.querySelector('[data-col="penalite"]');
