@@ -1,6 +1,6 @@
 {
   "meta": {
-    "derniere_maj": "2026-07-10"
+    "derniere_maj": "2026-07-13"
   },
   "vehicules": [
     {
@@ -416,7 +416,7 @@
       "marque": "BMW",
       "raison_sociale": "CH. POZZI",
       "vin": "",
-      "valeur_vente_ht": null,
+      "valeur_vente_ht": 43372.49,
       "statut_paiement": "INCONNU",
       "statut_facturation": "NON_FACTURE",
       "pv_signe": "NON_SIGNE",
@@ -424,12 +424,12 @@
       "numero_facture": "",
       "date_facture": "",
       "source": "",
-      "maj_par": "",
-      "maj_le": "",
+      "maj_par": "ZEEV ",
+      "maj_le": "2026-07-13 16:11",
       "id": "bmw-018",
       "client": "SIEMENS ENERGY SAS",
       "conducteur": "Guillaume Crouzet",
-      "modele": "iX1 ou iX2 (à confirmer)",
+      "modele": " iX2 ",
       "immat": "",
       "statut_livraison": "EN_COMMANDE",
       "date_livraison": "",
