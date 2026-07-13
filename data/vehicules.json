@@ -457,7 +457,8 @@
       "immat": "",
       "statut_livraison": "NON_LIVRE",
       "date_livraison": "",
-      "remarques": "A opté pour une Skoda — hors périmètre BMW Ch.Pozzi, suivi informatif uniquement (aucune commission applicable)."
+      "remarques": "A opté pour une Skoda — hors périmètre BMW Ch.Pozzi, suivi informatif uniquement (aucune commission applicable).",
+      "archived": true
     },
     {
       "concession": "BMW_POZZI",
