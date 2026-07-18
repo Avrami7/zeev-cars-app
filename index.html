@@ -7,6 +7,11 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>ZEEV CARS — Suivi &amp; Facturation</title>
+<!-- Favicon "Z" — badge circulaire vert cohérent avec le vert de marque (--gr)
+     déjà utilisé sur "CARS" dans la topbar. Encodé en SVG inline pour éviter
+     un fichier binaire séparé à héberger/déployer. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='32' fill='%2316a34a'/%3E%3Ctext x='32' y='45' font-family='Arial, Helvetica, sans-serif' font-weight='800' font-size='38' fill='%23ffffff' text-anchor='middle'%3EZ%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316a34a'/%3E%3Ctext x='32' y='45' font-family='Arial, Helvetica, sans-serif' font-weight='800' font-size='38' fill='%23ffffff' text-anchor='middle'%3EZ%3C/text%3E%3C/svg%3E">
 <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f4f6fa" media="(prefers-color-scheme: light)">
 <!-- Dépendance externe optionnelle : Google Fonts. En cas de blocage proxy/réseau
@@ -1211,6 +1216,33 @@ table.data-table tbody tr.row-livre select {
   .tb-right   { gap: 4px; }
   .tb-btn     { padding: 6px 9px; font-size: 10.5px; }
   main        { padding: 12px 10px 24px; }
+
+  /* Anti-zoom automatique iOS Safari : tout champ de saisie sous 16px de
+     police déclenche un zoom involontaire au focus sur iPhone. Corrigé ici
+     uniquement pour mobile, pour ne pas perdre la densité d'affichage sur
+     desktop où ce bug n'existe pas. */
+  .auth-inp, .auth-sel,
+  input.cell-input, select.cell-input,
+  .rate-input {
+    font-size: 16px !important;
+  }
+
+  /* Cibles tactiles agrandies (recommandation WCAG 2.5.5) — les icônes 🗑
+     et 🖨 restent visuellement compactes mais la zone cliquable grandit. */
+  .invoice-btn {
+    width: 40px; height: 40px; font-size: 15px;
+  }
+  .archive-vehicle-btn {
+    min-width: 40px; min-height: 40px; padding: 6px 10px; font-size: 15px;
+  }
+  .ntab {
+    padding: 13px 14px; min-height: 44px;
+  }
+}
+@media (max-width: 420px) {
+  .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .app-dialog { width: 96vw; max-height: 92vh; }
+  .dialog-body { padding: 14px 16px 18px; }
 }
 
 /* =====================================================================
