@@ -802,7 +802,7 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
    manuellement toute la liste. Filtre purement côté affichage (les KPI et
    les données restent calculés sur l'ensemble complet, jamais sur le
    sous-ensemble filtré). */
-.table-search-row { margin-bottom: 10px; }
+.table-search-row { margin-bottom: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .table-search {
   width: 100%; max-width: 420px; padding: 8px 12px;
   border: 1.5px solid var(--brd2); border-radius: 9px;
@@ -811,6 +811,22 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 }
 .table-search:focus { border-color: var(--ac); box-shadow: 0 0 0 3px var(--pb); }
 .table-search::-webkit-search-cancel-button { cursor: pointer; }
+
+/* Liste des véhicules retirés — demande explicite (critique fluidité du
+   10/07/2026) : le bouton 🗑 n'avait jusqu'ici aucune contrepartie pour
+   revoir ou annuler un retrait. Purement un état d'affichage — la donnée
+   sous-jacente reste v.archived, jamais supprimée. */
+.archived-list {
+  margin-bottom: 14px; border: 1px solid var(--brd2); border-radius: var(--rs);
+  background: var(--sur2); overflow: hidden;
+}
+.archived-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 12px; font-size: 12px; border-bottom: 1px solid var(--brd);
+}
+.archived-row:last-child { border-bottom: none; }
+.archived-row-info { color: var(--tx2); }
+.archived-row-empty { padding: 14px; text-align: center; color: var(--tx3); font-size: 12px; }
 
 /* =====================================================================
    KPI
@@ -1620,7 +1636,11 @@ table.data-table tbody tr.row-livre select {
         <input type="search" class="table-search" id="search-suivi"
           placeholder="Rechercher : client, conducteur, modèle, immat, VIN, n° contrat, n° facture..."
           aria-label="Rechercher un véhicule dans tous les véhicules">
+        <button type="button" class="tb-btn sm archived-toggle-btn" id="archived-toggle-suivi" data-concession="" data-list-id="archived-list-suivi">
+          🗑 Véhicules retirés
+        </button>
       </div>
+      <div class="archived-list hidden" id="archived-list-suivi"></div>
       <div class="table-scroll-top" id="scroll-top-suivi"><div class="table-scroll-top-spacer"></div></div>
       <div class="table-wrap" id="table-wrap-suivi">
         <table class="data-table" id="table-suivi" aria-label="Tous les véhicules"></table>
@@ -2982,7 +3002,11 @@ function panelTemplate(key, isActive) {
         <input type="search" class="table-search" id="search-${slug}"
           placeholder="Rechercher : client, conducteur, modèle, immat, VIN, n° contrat, n° facture..."
           aria-label="Rechercher un véhicule dans ${label}">
+        <button type="button" class="tb-btn sm archived-toggle-btn" id="archived-toggle-${slug}" data-concession="${esc(key)}" data-list-id="archived-list-${slug}">
+          🗑 Véhicules retirés
+        </button>
       </div>
+      <div class="archived-list hidden" id="archived-list-${slug}"></div>
 
       <div class="table-scroll-top" id="scroll-top-${slug}"><div class="table-scroll-top-spacer"></div></div>
       <div class="table-wrap" id="table-wrap-${slug}">
@@ -3493,6 +3517,21 @@ function setupTabs() {
       renderConcessionPanel(key, `table-${slug}`, `kpi-${slug}`);
     }
   });
+
+  /* Bascule d'affichage de la liste des véhicules retirés + action Restaurer */
+  document.addEventListener("click", (e) => {
+    const toggleBtn = e.target.closest(".archived-toggle-btn");
+    if (toggleBtn) {
+      const list = document.getElementById(toggleBtn.dataset.listId);
+      if (!list) return;
+      const willShow = list.classList.contains("hidden");
+      if (willShow) renderArchivedList(toggleBtn.dataset.listId, toggleBtn.dataset.concession);
+      list.classList.toggle("hidden", !willShow);
+      return;
+    }
+    const restoreBtn = e.target.closest("[data-restore-id]");
+    if (restoreBtn) restoreVehicle(restoreBtn.dataset.restoreId);
+  });
 }
 
 function setupSave() {
@@ -3585,6 +3624,7 @@ function renderAll() {
   });
   renderSuivi();
   renderKpiDashboard();
+  if (typeof renderAllArchivedLists === "function") renderAllArchivedLists();
   document.getElementById("footer-info").textContent =
     `${state.data.vehicules.filter(v => !v.archived).length} véhicules — dernière synchronisation locale : ${nowStamp()}`;
   /* Réinjection systématique des poignées de redimensionnement après chaque
@@ -4625,11 +4665,62 @@ async function archiveVehicle(id) {
   );
   if (!ok) return;
   v.archived = true;
+  v.archived_le = new Date().toISOString().slice(0, 16).replace("T", " ");
   state.dirty = true;
   updateSaveBtn();
   setSyncStatus("Modifications non enregistrées", "dirty");
   renderAll();
   toast(`"${label}" retiré de l'interface. Pensez à enregistrer.`, "ok");
+}
+
+/* Restauration — symétrique d'archiveVehicle(). Aucune confirmation
+   nécessaire : contrairement au retrait, une restauration ne fait
+   disparaître aucune donnée ni aucune ligne, elle est donc sans risque. */
+function restoreVehicle(id) {
+  const v = (state.data.vehicules || []).find(x => x.id === id);
+  if (!v) { toast("Véhicule introuvable.", "error"); return; }
+  const label = [v.client, v.modele].filter(Boolean).join(" — ") || v.id;
+  v.archived = false;
+  delete v.archived_le;
+  state.dirty = true;
+  updateSaveBtn();
+  setSyncStatus("Modifications non enregistrées", "dirty");
+  renderAll();
+  renderAllArchivedLists();
+  toast(`"${label}" restauré. Pensez à enregistrer.`, "success");
+}
+
+function archivedListRowsHTML(vehicules) {
+  if (vehicules.length === 0) {
+    return `<div class="archived-row-empty">Aucun véhicule retiré ici.</div>`;
+  }
+  return vehicules.map(v => {
+    const label = [v.client, v.modele].filter(Boolean).join(" — ") || v.id;
+    return `<div class="archived-row">
+      <span class="archived-row-info">${esc(label)}${v.archived_le ? " — retiré le " + esc(v.archived_le) : ""}</span>
+      <button type="button" class="tb-btn sm" data-restore-id="${esc(v.id)}">↩ Restaurer</button>
+    </div>`;
+  }).join("");
+}
+
+function renderArchivedList(listId, concessionKey) {
+  const el = document.getElementById(listId);
+  if (!el) return;
+  const archived = (state.data.vehicules || []).filter(v =>
+    v.archived && (!concessionKey || v.concession === concessionKey));
+  el.innerHTML = archivedListRowsHTML(archived);
+  const toggleBtn = document.querySelector(`[data-list-id="${listId}"]`);
+  if (toggleBtn) {
+    toggleBtn.textContent = archived.length
+      ? `🗑 Véhicules retirés (${archived.length})`
+      : `🗑 Véhicules retirés`;
+  }
+}
+
+function renderAllArchivedLists() {
+  document.querySelectorAll(".archived-toggle-btn").forEach(btn => {
+    renderArchivedList(btn.dataset.listId, btn.dataset.concession);
+  });
 }
 
 function cellInput(id, field, value, editable, type) {
