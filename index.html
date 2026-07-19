@@ -797,6 +797,21 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 .rate-input:disabled { opacity: .6; cursor: not-allowed; }
 .param-text { font-size: 12px; color: var(--tx2); }
 
+/* Recherche dans les tableaux — demande explicite (critique fluidité du
+   10/07/2026) : aucun moyen de retrouver un véhicule sans scroller
+   manuellement toute la liste. Filtre purement côté affichage (les KPI et
+   les données restent calculés sur l'ensemble complet, jamais sur le
+   sous-ensemble filtré). */
+.table-search-row { margin-bottom: 10px; }
+.table-search {
+  width: 100%; max-width: 420px; padding: 8px 12px;
+  border: 1.5px solid var(--brd2); border-radius: 9px;
+  background: var(--bg); color: var(--tx); font-size: 13px; font-family: var(--font);
+  outline: none; transition: border-color var(--transition), box-shadow var(--transition);
+}
+.table-search:focus { border-color: var(--ac); box-shadow: 0 0 0 3px var(--pb); }
+.table-search::-webkit-search-cancel-button { cursor: pointer; }
+
 /* =====================================================================
    KPI
    ===================================================================== */
@@ -1223,7 +1238,7 @@ table.data-table tbody tr.row-livre select {
      desktop où ce bug n'existe pas. */
   .auth-inp, .auth-sel,
   input.cell-input, select.cell-input,
-  .rate-input {
+  .rate-input, .table-search {
     font-size: 16px !important;
   }
 
@@ -1601,6 +1616,11 @@ table.data-table tbody tr.row-livre select {
         Vue informative de gestion de flotte — aucun calcul de commission ici. Voir les onglets de facturation dédiés.
       </div>
       <div class="kpi-row" id="kpi-suivi" role="region" aria-label="Indicateurs flotte complète"></div>
+      <div class="table-search-row">
+        <input type="search" class="table-search" id="search-suivi"
+          placeholder="Rechercher : client, conducteur, modèle, immat, VIN, n° contrat, n° facture..."
+          aria-label="Rechercher un véhicule dans tous les véhicules">
+      </div>
       <div class="table-scroll-top" id="scroll-top-suivi"><div class="table-scroll-top-spacer"></div></div>
       <div class="table-wrap" id="table-wrap-suivi">
         <table class="data-table" id="table-suivi" aria-label="Tous les véhicules"></table>
@@ -1891,7 +1911,7 @@ const CONFIG = {
    UNIQUEMENT aux comptes en scope "FULL" — absent (undefined) pour un
    compte "LIVRAISON_ONLY", qui ne peut donc techniquement pas y accéder.
    ===================================================================== */
-const state = { user: null, sessionToken: null, data: null, contracts: null, dirty: false };
+const state = { user: null, sessionToken: null, data: null, contracts: null, dirty: false, tableSearch: {} };
 
 function isApiConfigured() {
   return CONFIG.apiBase && !CONFIG.apiBase.includes("VOTRE-SOUS-DOMAINE");
@@ -2958,6 +2978,12 @@ function panelTemplate(key, isActive) {
 
       <div class="kpi-row" id="kpi-${slug}" role="region" aria-label="Indicateurs ${label}"></div>
 
+      <div class="table-search-row">
+        <input type="search" class="table-search" id="search-${slug}"
+          placeholder="Rechercher : client, conducteur, modèle, immat, VIN, n° contrat, n° facture..."
+          aria-label="Rechercher un véhicule dans ${label}">
+      </div>
+
       <div class="table-scroll-top" id="scroll-top-${slug}"><div class="table-scroll-top-spacer"></div></div>
       <div class="table-wrap" id="table-wrap-${slug}">
         <table class="data-table" id="table-${slug}" aria-label="Véhicules ${label}"></table>
@@ -3448,6 +3474,25 @@ function setupTabs() {
      statiques (Tableau de bord, Admin, All Vehicle Ordered) pour éviter un
      double-binding (double bascule au clic, double envoi de renderAll). */
   document.querySelectorAll('.ntab:not([data-dynamic-concession="true"])').forEach(bindTabButton);
+
+  /* Recherche dans les tableaux — délégation unique, couvre aussi bien les
+     panels statiques (Suivi) que les panels dynamiques (BMW/Ford/futurs),
+     y compris ceux créés après ce premier appel. */
+  document.addEventListener("input", (e) => {
+    const el = e.target;
+    if (!el.classList || !el.classList.contains("table-search")) return;
+    const slug = el.id.replace(/^search-/, "");
+    if (slug === "suivi") {
+      state.tableSearch.suivi = el.value;
+      renderSuivi();
+      return;
+    }
+    const key = concessionKeys().find(k => slugFor(k) === slug);
+    if (key) {
+      state.tableSearch[key] = el.value;
+      renderConcessionPanel(key, `table-${slug}`, `kpi-${slug}`);
+    }
+  });
 }
 
 function setupSave() {
@@ -4422,6 +4467,14 @@ function esc(str) {
     .replace(/>/g, "&gt;");
 }
 
+function vehicleMatchesSearch(v, term) {
+  const haystack = [
+    v.client, v.conducteur, v.modele, v.immat, v.vin,
+    v.numero_contrat, v.numero_facture, v.remarques,
+  ].filter(Boolean).join(" ").toLowerCase();
+  return haystack.includes(term);
+}
+
 function renderConcessionPanel(concession, tableId, kpiId) {
   const vehicules         = getVehicules(concession);
   /* Simulation = aucun contrat verrouillé (locked === true) transmis par le
@@ -4468,8 +4521,19 @@ function renderConcessionPanel(concession, tableId, kpiId) {
     `<th scope="col"${h === "VIN" ? ' data-col="vin"' : ""}${isComputedHeader(h) ? ` title="${esc(COMPUTED_HEADER_HINT)}"` : ""}>${h}${isComputedHeader(h) ? ' <span aria-hidden="true" style="opacity:.6;">ⓘ</span>' : ""}</th>`
   ).join("") + "</tr></thead><tbody>";
 
+  /* Filtre de recherche — n'affecte que les lignes affichées dans CE
+     tableau ; les KPI ci-dessus (renderKPI, déjà appelé) restent calculés
+     sur l'intégralité des véhicules, jamais sur le sous-ensemble filtré. */
+  const searchTerm = (state.tableSearch[concession] || "").trim().toLowerCase();
+  const displayedVehicules = searchTerm
+    ? vehicules.filter(v => vehicleMatchesSearch(v, searchTerm))
+    : vehicules;
 
-  vehicules.forEach((v, i) => {
+  if (searchTerm && displayedVehicules.length === 0) {
+    html += `<tr><td colspan="${headers.length}" style="text-align:center; padding:24px; color:var(--tx3); font-size:12px;">Aucun véhicule ne correspond à "${esc(searchTerm)}".</td></tr>`;
+  }
+
+  displayedVehicules.forEach((v, i) => {
     /* En simulation, affiche la commission dès que la valeur est renseignée */
     const commission = simulation ? computeCommissionSimulation(v) : computeCommission(v);
     const eligibilite = computeEligibilite(v);
@@ -4672,7 +4736,16 @@ function renderSuivi() {
   const headers = ["Marque", "Concession", "Client", "Conducteur", "Modèle / Version", "Immat.", "Statut livraison", "Date livraison (effective ou estimée)", "Source"];
   let html = "<thead><tr>" + headers.map(h => `<th scope="col">${h}</th>`).join("") + "</tr></thead><tbody>";
 
-  vehicules.forEach(v => {
+  const searchTerm = (state.tableSearch.suivi || "").trim().toLowerCase();
+  const displayedVehicules = searchTerm
+    ? vehicules.filter(v => vehicleMatchesSearch(v, searchTerm))
+    : vehicules;
+
+  if (searchTerm && displayedVehicules.length === 0) {
+    html += `<tr><td colspan="${headers.length}" style="text-align:center; padding:24px; color:var(--tx3); font-size:12px;">Aucun véhicule ne correspond à "${esc(searchTerm)}".</td></tr>`;
+  }
+
+  displayedVehicules.forEach(v => {
     html += `<tr>
       <td>${esc(v.marque)}</td>
       <td>${esc(v.raison_sociale)}</td>
