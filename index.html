@@ -1554,6 +1554,23 @@ table.data-table tbody tr.row-livre select {
 
       <div class="bandeau bandeau-warn hidden" id="legal-rate-alert" role="alert"></div>
 
+      <div class="bandeau bandeau-warn" role="alert">
+        ⚠️ <strong>Mention TVA sur les factures ("TVA non applicable — Article 263 du CGI") jamais confirmée par un expert-comptable dans cet outil.</strong><br>
+        Le texte est écrit en dur dans le code — aucune vérification automatique de son bien-fondé n'est possible ni souhaitable ici. Faites confirmer ce régime par votre expert-comptable, puis conservez la trace de cette validation dans vos propres registres (hors de cette application).
+      </div>
+
+      <!-- ── SECTION : Vérification de cohérence Export vs Affichage ── -->
+      <div class="admin-section">
+        <div class="admin-section-title">Vérifier la cohérence Export CSV ↔ Affichage</div>
+        <div style="font-size:12px; color:var(--tx2); margin-bottom:10px;">
+          L'export CSV est généré par le Worker (calcul serveur), l'affichage à l'écran par le calcul du navigateur —
+          deux implémentations séparées de la même formule. Cet outil compare les deux, en lecture seule,
+          sans toucher à aucune donnée ni à l'enregistrement.
+        </div>
+        <button type="button" class="tb-btn" id="admin-check-export-btn">🔍 Vérifier la cohérence</button>
+        <div id="admin-check-export-result" style="margin-top:10px;"></div>
+      </div>
+
       <!-- ── SECTION : Concessions existantes ── -->
       <div class="admin-section">
         <div class="admin-section-title">Concessions enregistrées</div>
@@ -1966,6 +1983,131 @@ const apiGetPaymentDetails = () => apiCall("/api/payment-details");
 /* Export comptable CSV — réservé aux comptes scope "FULL" (le Worker renvoie
    403 sinon). Contrairement à apiCall(), la réponse n'est pas du JSON mais un
    flux CSV à proposer en téléchargement direct dans le navigateur. */
+async function apiFetchExportCsvText() {
+  if (!isApiConfigured()) {
+    throw new Error("Configuration manquante : renseignez CONFIG.apiBase dans app.js avec l'URL de votre Worker (voir DEPLOIEMENT.md).");
+  }
+  const res = await fetch(`${CONFIG.apiBase}/api/export`, {
+    headers: { "Authorization": `Bearer ${state.sessionToken}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Erreur réseau (${res.status}).`);
+  }
+  return await res.text();
+}
+
+function parseCsvSimple(text) {
+  const firstLine = text.split(/\r?\n/, 1)[0] || "";
+  const delimiter = (firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length ? ";" : ",";
+  const lines = text.replace(/\r/g, "").split("\n").filter(l => l.length);
+  const parseLine = (line) => {
+    const cells = [];
+    let cur = "", inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (inQuotes) {
+        if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else inQuotes = false; }
+        else cur += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === delimiter) { cells.push(cur); cur = ""; }
+        else cur += c;
+      }
+    }
+    cells.push(cur);
+    return cells;
+  };
+  if (!lines.length) return { headers: [], rows: [] };
+  const headers = parseLine(lines[0]).map(h => h.trim());
+  const rows = lines.slice(1).map(l => {
+    const cells = parseLine(l);
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = (cells[i] || "").trim());
+    return obj;
+  });
+  return { headers, rows };
+}
+
+function parseMoneyLoose(str) {
+  if (str === null || str === undefined || str === "") return null;
+  const cleaned = String(str).replace(/[^\d,.\-]/g, "").replace(",", ".");
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
+
+/* Vérification de cohérence Export CSV (calcul Worker) ↔ Affichage (calcul
+   navigateur) — demande explicite (audit critique du 10/07/2026, point #6).
+   Purement en lecture seule : ne modifie ni n'enregistre rien, se contente
+   de comparer deux sources déjà existantes. Le format exact du CSV n'étant
+   pas connu à l'avance (pas d'accès au code Worker), la détection des
+   colonnes id/immat/commission se fait par nom au moment de l'exécution —
+   si aucune colonne "commission" n'est trouvée, l'outil le dit clairement
+   plutôt que de deviner. */
+async function checkExportConsistency() {
+  const btn = document.getElementById("admin-check-export-btn");
+  const resultEl = document.getElementById("admin-check-export-result");
+  if (!resultEl) return;
+  if (btn) btn.disabled = true;
+  resultEl.innerHTML = `<div class="archived-row-empty">Vérification en cours…</div>`;
+  try {
+    const text = await apiFetchExportCsvText();
+    const { headers, rows } = parseCsvSimple(text);
+
+    const idHeader = headers.find(h => /^id$/i.test(h.trim()));
+    const commissionHeader = headers.find(h => /commission/i.test(h));
+    const immatHeader = headers.find(h => /immat/i.test(h));
+
+    if (!commissionHeader) {
+      resultEl.innerHTML = `<div class="archived-row-empty">Aucune colonne "commission" trouvée dans l'export (colonnes reçues : ${esc(headers.join(", "))}). Vérification impossible sans connaître le format exact généré par le Worker.</div>`;
+      return;
+    }
+
+    const activeVehicules = state.data.vehicules.filter(v => !v.archived);
+    let matched = 0;
+    const mismatches = [];
+    const notFoundInExport = [];
+
+    activeVehicules.forEach(v => {
+      let row = null;
+      if (idHeader) row = rows.find(r => r[idHeader] === v.id);
+      if (!row && immatHeader && v.immat) row = rows.find(r => r[immatHeader] === v.immat);
+      if (!row) { notFoundInExport.push(v); return; }
+      matched++;
+      const exportVal = parseMoneyLoose(row[commissionHeader]);
+      if (exportVal === null) return;
+      const contract = state.contracts && state.contracts[v.concession];
+      const simulation = !contract || contract.locked !== true;
+      const clientVal = simulation ? computeCommissionSimulation(v) : computeCommission(v);
+      if (Math.abs(exportVal - clientVal) > 0.01) mismatches.push({ v, exportVal, clientVal });
+    });
+
+    let html = `<div style="font-size:12px; color:var(--tx2); margin-bottom:8px;">
+      ${matched} véhicule(s) rapproché(s) sur ${activeVehicules.length} · clé utilisée : ${idHeader ? "id" : (immatHeader ? "immat" : "aucune trouvée")} · colonne comparée : "${esc(commissionHeader)}"
+    </div>`;
+    if (matched === 0) {
+      html += `<div class="archived-row-empty">Aucun véhicule n'a pu être rapproché entre l'export et l'affichage — vérifiez que l'export contient bien une colonne "id" ou "immat".</div>`;
+    } else if (mismatches.length === 0) {
+      html += `<div class="archived-row-empty" style="color:var(--gr);">✓ Aucun écart détecté entre l'affichage et l'export, sur les véhicules rapprochés.</div>`;
+    } else {
+      html += mismatches.map(m => `<div class="archived-row"><span class="archived-row-info">${esc(m.v.client || m.v.id)} — affiché ${fmtEUR(m.clientVal)} / export ${fmtEUR(m.exportVal)}</span></div>`).join("");
+    }
+    if (notFoundInExport.length) {
+      html += `<div style="font-size:11px; color:var(--tx3); margin-top:8px;">${notFoundInExport.length} véhicule(s) affiché(s) mais non retrouvé(s) dans l'export.</div>`;
+    }
+    resultEl.innerHTML = html;
+  } catch (e) {
+    resultEl.innerHTML = `<div class="archived-row-empty" style="color:var(--rd);">Erreur : ${esc(e.message)}</div>`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function setupExportConsistencyCheck() {
+  const btn = document.getElementById("admin-check-export-btn");
+  if (btn) btn.addEventListener("click", checkExportConsistency);
+}
+
 async function apiExportCsv() {
   if (!isApiConfigured()) {
     throw new Error("Configuration manquante : renseignez CONFIG.apiBase dans app.js avec l'URL de votre Worker (voir DEPLOIEMENT.md).");
@@ -2722,6 +2864,7 @@ async function bootApp() {
   setupUsersAdmin();
   setupExport();
   setupImport();
+  setupExportConsistencyCheck();
   setupAddVehicle();
   setupConsolidatedInvoice();
   setupKpiClientButtons();
@@ -3879,14 +4022,23 @@ function renderKpiChart(vehicules, range) {
    - génère le bloc CONTRACTS à coller dans le Worker Cloudflare
    ===================================================================== */
 
+/* Liste de secours des comptes propriétaires — demande explicite (audit
+   critique du 10/07/2026, point #3 "bus factor"). Le mécanisme principal
+   reste state.user.isOwner transmis par le Worker (peut déjà être accordé
+   à plusieurs comptes côté serveur) ; cette liste n'est qu'un filet de
+   secours si le Worker ne transmet rien. Ajouter un login ici suffit à
+   désigner un compte de secours, sans toucher à isOwner() elle-même. */
+const OWNER_FALLBACK_LOGINS = ['Avrami7'];
+
 function isOwner() {
   if (!state.user) return false;
-  /* Le Worker transmet isOwner: true dans le JWT pour le compte propriétaire.
-     On accepte aussi une vérification par login au cas où le Worker serait
-     mis à jour pour inclure ce champ. */
+  /* Le Worker transmet isOwner: true dans le JWT pour le/les compte(s)
+     propriétaire(s). On accepte aussi une vérification par login, listée
+     dans OWNER_FALLBACK_LOGINS ci-dessus, au cas où le Worker ne
+     transmettrait pas ce champ pour un compte donné. */
   return !!(state.user.isOwner ||
-            state.user.login === 'Avrami7' ||
-            state.user.username === 'Avrami7');
+            OWNER_FALLBACK_LOGINS.includes(state.user.login) ||
+            OWNER_FALLBACK_LOGINS.includes(state.user.username));
 }
 
 function setupAdminTab() {
