@@ -1,6 +1,6 @@
 {
   "meta": {
-    "derniere_maj": "2026-07-13"
+    "derniere_maj": "2026-07-20"
   },
   "vehicules": [
     {
@@ -377,14 +377,14 @@
       "date_facture": "",
       "source": "",
       "maj_par": "ZEEV ",
-      "maj_le": "2026-07-10 14:54",
+      "maj_le": "2026-07-20 15:04",
       "id": "bmw-016",
       "client": "SIEMENS ENERGY SAS",
       "conducteur": "Alexandra Weber",
       "modele": "iX1",
       "immat": "",
       "statut_livraison": "EN_COMMANDE",
-      "date_livraison": "",
+      "date_livraison": "2026-09-30",
       "remarques": "Livraison prévue le 30/09/2026."
     },
     {
