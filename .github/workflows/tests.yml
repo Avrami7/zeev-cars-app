@@ -1,0 +1,25 @@
+name: Tests non-régression (fonctions critiques)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Volontairement indépendant du workflow de déploiement (deploy.yml) : un
+# test rouge ici n'empêche PAS le déploiement, il alerte seulement. Bloquer
+# le déploiement sur l'échec des tests serait un changement de comportement
+# plus lourd, à décider séparément si souhaité.
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Exécuter les tests des fonctions financières critiques
+        run: node tests/critical-functions.test.js
