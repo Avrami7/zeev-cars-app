@@ -2864,6 +2864,7 @@ async function bootApp() {
   setupUsersAdmin();
   setupExport();
   setupImport();
+  setupLocalBackup();
   setupExportConsistencyCheck();
   setupAddVehicle();
   setupConsolidatedInvoice();
@@ -2917,6 +2918,7 @@ async function reloadData() {
     applyContractConfig();
     setSyncStatus("Synchronisé", "ok");
     renderAll();
+    await checkForLocalBackup();
   } catch (e) {
     if (/session/i.test(e.message || "")) {
       toast("Votre session a expiré — veuillez vous reconnecter.", "error");
@@ -3689,6 +3691,65 @@ function setupSave() {
    la pastille de statut, pour ne plus laisser l'utilisateur deviner si son
    travail est vraiment enregistré. Purement informatif, ne change rien au
    comportement de sauvegarde existant. */
+/* Tampon local — demande explicite (audit critique du 10/07/2026, points
+   #8 et #11) : l'autosave GitHub toutes les 10 min laisse une fenêtre de
+   perte de données en cas de crash navigateur, et un conflit d'écriture
+   déclenche un rechargement complet qui perdait tout le travail en cours.
+   Ce tampon local (localStorage, ~20s d'intervalle) ne remplace PAS
+   l'enregistrement sur GitHub — il ne fait que permettre de proposer une
+   restauration si jamais l'enregistrement n'a pas eu lieu à temps. */
+const LOCAL_BACKUP_KEY = "zeev_local_backup";
+
+function saveLocalBackup() {
+  if (!state.data || !state.dirty) return;
+  try {
+    localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify({
+      savedAt: new Date().toISOString().slice(0, 16),
+      vehicules: state.data.vehicules,
+    }));
+  } catch (e) { /* stockage indisponible : tant pis, pas de tampon local possible ici */ }
+}
+
+function clearLocalBackup() {
+  try { localStorage.removeItem(LOCAL_BACKUP_KEY); } catch (e) {}
+}
+
+function setupLocalBackup() {
+  setInterval(saveLocalBackup, 20000);
+  window.addEventListener("beforeunload", saveLocalBackup);
+}
+
+/* Appelée une fois les données GitHub chargées — propose de restaurer un
+   tampon local plus récent si son contenu diffère de ce qui vient d'être
+   chargé (signe qu'un enregistrement n'a pas eu lieu avant une fermeture,
+   un crash, ou un rechargement forcé par conflit). */
+async function checkForLocalBackup() {
+  let raw;
+  try { raw = localStorage.getItem(LOCAL_BACKUP_KEY); } catch (e) { return; }
+  if (!raw) return;
+  let backup;
+  try { backup = JSON.parse(raw); } catch (e) { clearLocalBackup(); return; }
+  if (!backup || !Array.isArray(backup.vehicules)) { clearLocalBackup(); return; }
+
+  const sameAsLoaded = JSON.stringify(backup.vehicules) === JSON.stringify(state.data.vehicules);
+  if (sameAsLoaded) { clearLocalBackup(); return; }
+
+  const ok = await appConfirm(
+    `Des modifications non enregistrées ont été trouvées localement (sauvegardées le ${fmtDateTimeISOtoFR(backup.savedAt)}), différentes de ce qui vient d'être chargé depuis GitHub. Voulez-vous les restaurer et les réappliquer par-dessus ?`,
+    { title: "Modifications locales trouvées", confirmLabel: "Restaurer" }
+  );
+  if (ok) {
+    state.data.vehicules = backup.vehicules;
+    state.dirty = true;
+    updateSaveBtn();
+    setSyncStatus("Modifications non enregistrées", "dirty");
+    renderAll();
+    toast("Modifications locales restaurées. Vérifiez puis enregistrez sur GitHub.", "ok");
+  } else {
+    clearLocalBackup();
+  }
+}
+
 let lastSavedAt = null;
 let nextAutoSaveAt = null;
 
@@ -3724,6 +3785,7 @@ async function performSave(silent) {
     updateSaveBtn();
     setSyncStatus("Synchronisé", "ok");
     lastSavedAt = Date.now();
+    clearLocalBackup();
     updateSyncDetail();
     toast(
       silent
@@ -3734,7 +3796,10 @@ async function performSave(silent) {
   } catch (e) {
     setSyncStatus("Erreur d'enregistrement", "error");
     toast(e.message, "error");
-    if (/conflit/i.test(e.message || "")) await reloadData();
+    if (/conflit/i.test(e.message || "")) {
+      saveLocalBackup();
+      await reloadData();
+    }
   } finally {
     btn.disabled = false;
   }
