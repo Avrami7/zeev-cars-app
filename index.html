@@ -2253,16 +2253,26 @@ function applyContractEndDateAlert(bandeauId, contract, label) {
    reste néanmoins en place en cas de fichier de police manquant/corrompu sur
    le dépôt, pour dégrader proprement sans bloquer le rendu.
    ===================================================================== */
-if (window.document && document.fonts && document.fonts.ready) {
-  document.fonts.ready
+if (window.document && document.fonts) {
+  /* Vérification renforcée (10/07/2026) : se fier uniquement à
+     document.fonts.ready pouvait donner un faux positif si rien à l'écran
+     n'avait encore sollicité Syne à cet instant précis — le fichier est
+     valide, seul le TIMING de la vérification était trop tôt. On force
+     maintenant explicitement le chargement avant de conclure à un échec
+     réel, pour ne plus alarmer inutilement dans la console. */
+  Promise.resolve(document.fonts.load('16px Syne'))
+    .then(() => document.fonts.ready)
     .then(() => {
       const syneLoaded = document.fonts.check("16px Syne");
       if (!syneLoaded) {
         document.documentElement.classList.add("fonts-fallback");
-        console.warn("[ZEEV] Police Syne non chargée (fichier local manquant ou corrompu) — pile de secours système active.");
+        console.warn("[ZEEV] Police Syne non chargée après tentative explicite (fichier local manquant ou corrompu, ou réseau bloqué) — pile de secours système active.");
       }
     })
-    .catch(() => {});
+    .catch(() => {
+      document.documentElement.classList.add("fonts-fallback");
+      console.warn("[ZEEV] Échec du chargement de la police Syne — pile de secours système active.");
+    });
 }
 
 /* =====================================================================
