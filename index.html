@@ -1781,6 +1781,10 @@ table.data-table tbody tr.row-livre select {
         <input class="auth-inp" id="av-client" required>
       </div>
       <div class="auth-field">
+        <label class="auth-lbl" for="av-loueur">Loueur</label>
+        <input class="auth-inp" id="av-loueur">
+      </div>
+      <div class="auth-field">
         <label class="auth-lbl" for="av-conducteur">Conducteur</label>
         <input class="auth-inp" id="av-conducteur">
       </div>
@@ -4750,7 +4754,7 @@ function esc(str) {
 
 function vehicleMatchesSearch(v, term) {
   const haystack = [
-    v.client, v.conducteur, v.modele, v.immat, v.vin,
+    v.client, v.loueur, v.conducteur, v.modele, v.immat, v.vin,
     v.numero_contrat, v.numero_facture, v.remarques,
   ].filter(Boolean).join(" ").toLowerCase();
   return haystack.includes(term);
@@ -4785,10 +4789,10 @@ function renderConcessionPanel(concession, tableId, kpiId) {
   const canEdit = true;
 
   const headers = restricted
-    ? ["N°", "Client", "Conducteur", "Modèle / Version", "Immat.", "VIN",
+    ? ["N°", "Client", "Loueur", "Conducteur", "Modèle / Version", "Immat.", "VIN",
        "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
        "N° de contrat", "Éligibilité facturation", "Remarques", "Dernière MAJ", "Retirer"]
-    : ["N°", "Client", "Conducteur", "Modèle / Version", "Immat.", "VIN",
+    : ["N°", "Client", "Loueur", "Conducteur", "Modèle / Version", "Immat.", "VIN",
        "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
        "Valeur de vente du véhicule HT (€)",
        "Statut paiement", "Date paiement reçu", "Statut facturation", "N° facture", "Date facture",
@@ -4829,6 +4833,7 @@ function renderConcessionPanel(concession, tableId, kpiId) {
     html += `<td>${i + 1}</td>`;
 
     html += cellInput(v.id, "client",     v.client,     canEdit, "text");
+    html += cellInput(v.id, "loueur",     v.loueur,     canEdit, "text");
     html += cellInput(v.id, "conducteur", v.conducteur, canEdit, "text");
     html += cellInput(v.id, "modele",     v.modele,     canEdit, "text");
 
@@ -5065,7 +5070,7 @@ function renderSuivi() {
   const vehicules = state.data.vehicules.filter(v => !v.archived);
   renderKPI("kpi-suivi", vehicules);
 
-  const headers = ["Marque", "Concession", "Client", "Conducteur", "Modèle / Version", "Immat.", "Statut livraison", "Date livraison (effective ou estimée)", "Source"];
+  const headers = ["Marque", "Concession", "Client", "Loueur", "Conducteur", "Modèle / Version", "Immat.", "Statut livraison", "Date livraison (effective ou estimée)", "Source"];
   let html = "<thead><tr>" + headers.map(h => `<th scope="col">${h}</th>`).join("") + "</tr></thead><tbody>";
 
   const searchTerm = (state.tableSearch.suivi || "").trim().toLowerCase();
@@ -5082,6 +5087,7 @@ function renderSuivi() {
       <td>${esc(v.marque)}</td>
       <td>${esc(v.raison_sociale)}</td>
       <td title="${esc(v.client)}">${esc(v.client)}</td>
+      <td>${esc(v.loueur)}</td>
       <td>${esc(v.conducteur)}</td>
       <td title="${esc(v.modele)}">${esc(v.modele)}</td>
       <td>${esc(v.immat)}</td>
@@ -5286,7 +5292,7 @@ window.addEventListener("beforeunload", (e) => {
    vers GitHub n'est créé.
    ===================================================================== */
 const CSV_IMPORT_WRITABLE_FIELDS = new Set([
-  "client", "conducteur", "modele", "immat", "vin",
+  "client", "loueur", "conducteur", "modele", "immat", "vin",
   "statut_livraison", "date_livraison", "pv_signe",
   "valeur_vente_ht", "statut_paiement", "date_paiement", "statut_facturation",
   "numero_facture", "date_facture", "source", "remarques", "marque",
@@ -5538,6 +5544,7 @@ function setupAddVehicle() {
       maj_le: new Date().toISOString().slice(0, 16).replace("T", " "),
       id: nextVehicleId(currentConcession),
       client,
+      loueur: document.getElementById("av-loueur").value.trim(),
       conducteur: document.getElementById("av-conducteur").value.trim(),
       modele: document.getElementById("av-modele").value.trim(),
       immat: document.getElementById("av-immat").value.trim(),
