@@ -2254,25 +2254,39 @@ function applyContractEndDateAlert(bandeauId, contract, label) {
    le dépôt, pour dégrader proprement sans bloquer le rendu.
    ===================================================================== */
 if (window.document && document.fonts) {
-  /* Vérification renforcée (10/07/2026) : se fier uniquement à
-     document.fonts.ready pouvait donner un faux positif si rien à l'écran
-     n'avait encore sollicité Syne à cet instant précis — le fichier est
-     valide, seul le TIMING de la vérification était trop tôt. On force
-     maintenant explicitement le chargement avant de conclure à un échec
-     réel, pour ne plus alarmer inutilement dans la console. */
-  Promise.resolve(document.fonts.load('16px Syne'))
-    .then(() => document.fonts.ready)
-    .then(() => {
-      const syneLoaded = document.fonts.check("16px Syne");
-      if (!syneLoaded) {
+  /* Vérification renforcée (10/07/2026, v2) : en plus de forcer le
+     chargement, on retente une fois après un court délai avant de
+     conclure à un échec (couvre un aléa réseau temporaire au tout premier
+     chargement de page), et on effectue un diagnostic réel (fetch) du
+     fichier pour distinguer précisément : fichier introuvable (404),
+     réseau bloqué, ou simple lenteur de chargement résolue au second
+     essai. Le message de console reflète maintenant ce diagnostic exact
+     au lieu d'une hypothèse générique ("manquant ou corrompu"). */
+  function checkSyneFont(attempt) {
+    Promise.resolve(document.fonts.load('16px Syne'))
+      .then(() => document.fonts.ready)
+      .then(async () => {
+        if (document.fonts.check("16px Syne")) return; // chargée, rien à signaler
+
+        if (attempt < 2) {
+          setTimeout(() => checkSyneFont(attempt + 1), 2000);
+          return;
+        }
+
         document.documentElement.classList.add("fonts-fallback");
-        console.warn("[ZEEV] Police Syne non chargée après tentative explicite (fichier local manquant ou corrompu, ou réseau bloqué) — pile de secours système active.");
-      }
-    })
-    .catch(() => {
-      document.documentElement.classList.add("fonts-fallback");
-      console.warn("[ZEEV] Échec du chargement de la police Syne — pile de secours système active.");
-    });
+        let diagnostic = "raison inconnue";
+        try {
+          const res = await fetch("fonts/Syne-Variable.woff2", { cache: "no-store" });
+          diagnostic = res.ok
+            ? `fichier accessible (HTTP ${res.status}) mais non reconnu comme police valide par le navigateur`
+            : `fichier inaccessible — HTTP ${res.status}`;
+        } catch (e) {
+          diagnostic = `requête réseau échouée (${e.message || "bloquée par le réseau/proxy"})`;
+        }
+        console.warn(`[ZEEV] Police Syne non chargée après 2 tentatives — ${diagnostic}. Pile de secours système active (purement visuel, aucune fonctionnalité affectée).`);
+      });
+  }
+  checkSyneFont(0);
 }
 
 /* =====================================================================
