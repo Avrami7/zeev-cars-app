@@ -2758,6 +2758,46 @@ function tryRestoreSession() {
    cohérent avec la modale de suppression de concession (même charte visuelle,
    inline styles avec les variables --bg2/--rd/--sur3/--brd2/--tx*). Retourne
    une Promise<boolean> : true si l'utilisateur confirme, false sinon. */
+/* Entrée/sortie animées pour les modales personnalisées (overlay + box) —
+   audit apple-design du 10/07/2026, complément demandé pour appConfirm()
+   et adminRemoveConcession(), qui n'étaient pas dans la liste initiale des
+   6 interactions mais suivent exactement la même construction (div overlay
+   + div box, ni entrée ni sortie animées jusqu'ici). Même ressort, mêmes
+   valeurs que le reste de l'app pour rester cohérent. */
+function animateOverlayIn(overlay, box) {
+  if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) return;
+  overlay.style.opacity = "0";
+  box.style.opacity = "0";
+  box.style.transform = "translateY(10px) scale(.97)";
+  createSpring({ damping: 1, response: 0.28, value: 0 }).to(1, {
+    onUpdate: (v) => { overlay.style.opacity = v; },
+  });
+  createSpring({ damping: 1, response: 0.32, value: 0 }).to(1, {
+    onUpdate: (v) => {
+      box.style.opacity = v;
+      box.style.transform = `translateY(${(1 - v) * 10}px) scale(${.97 + .03 * v})`;
+    },
+    onComplete: () => { box.style.transform = ""; },
+  });
+}
+
+function animateOverlayOut(overlay, box, onDone) {
+  if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) { overlay.remove(); if (onDone) onDone(); return; }
+  let pending = 2;
+  const settle = () => { if (--pending <= 0) { overlay.remove(); if (onDone) onDone(); } };
+  createSpring({ damping: 1, response: 0.2, value: 1 }).to(0, {
+    onUpdate: (v) => { overlay.style.opacity = v; },
+    onComplete: settle,
+  });
+  createSpring({ damping: 1, response: 0.2, value: 1 }).to(0, {
+    onUpdate: (v) => {
+      box.style.opacity = v;
+      box.style.transform = `translateY(${(1 - v) * 10}px) scale(${.97 + .03 * v})`;
+    },
+    onComplete: settle,
+  });
+}
+
 function appConfirm(message, opts) {
   opts = opts || {};
   const title = opts.title || "Confirmer";
@@ -2792,7 +2832,8 @@ function appConfirm(message, opts) {
     `;
     overlay.appendChild(box);
     document.body.appendChild(overlay);
-    const finish = (result) => { overlay.remove(); resolve(result); };
+    animateOverlayIn(overlay, box);
+    const finish = (result) => { animateOverlayOut(overlay, box, () => resolve(result)); };
     box.querySelector('#app-confirm-cancel').addEventListener('click', () => finish(false));
     box.querySelector('#app-confirm-ok').addEventListener('click', () => finish(true));
     overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(false); });
@@ -4484,6 +4525,7 @@ function adminRemoveConcession(key) {
 
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  animateOverlayIn(overlay, box);
 
   const input   = box.querySelector('#admin-delete-confirm-input');
   const confirmBtn = box.querySelector('#admin-delete-confirm');
@@ -4498,12 +4540,12 @@ function adminRemoveConcession(key) {
     confirmBtn.style.cursor = match ? 'pointer' : 'not-allowed';
   });
 
-  cancelBtn.addEventListener('click', () => overlay.remove());
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  cancelBtn.addEventListener('click', () => animateOverlayOut(overlay, box));
+  overlay.addEventListener('click', e => { if (e.target === overlay) animateOverlayOut(overlay, box); });
 
   confirmBtn.addEventListener('click', () => {
     if (input.value.trim() !== label) return;
-    overlay.remove();
+    animateOverlayOut(overlay, box);
 
     /* Supprimer de la config en mémoire — les données GitHub restent intactes */
     delete CONCESSION_LEGAL_INFO[key];
