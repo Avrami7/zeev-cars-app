@@ -399,17 +399,18 @@ body::before {
   background: var(--sur); color: var(--tx); font-family: var(--font);
   width: min(640px, 92vw); max-height: 86vh;
   box-shadow: var(--sh-3);
-  animation: dialogIn .32s var(--ease-out);
 }
 .app-dialog::backdrop {
   background: rgba(0,0,0,.55); backdrop-filter: blur(3px);
-  animation: backdropIn .32s var(--ease-out);
+  transition: opacity .28s var(--ease-out);
 }
-@keyframes dialogIn {
-  from { opacity: 0; transform: translateY(10px) scale(.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+/* Le panneau du dialog est désormais entièrement piloté par ressort JS
+   (openDialogAnimated / closeDialogAnimated, plus bas dans le script) —
+   audit apple-design du 10/07/2026, correctif après relecture : les
+   @keyframes dialogIn/dialogOut à durée fixe restaient utilisées ici alors
+   que le reste de l'app était déjà passé au ressort. Seul le ::backdrop
+   reste en CSS pur (transition simple), un pseudo-élément n'étant pas
+   manipulable directement via element.style en JavaScript. */
 
 /* Sortie miroir de l'entrée — audit apple-design du 10/07/2026 : la
    fermeture native de <dialog> (.close()) était instantanée, sans aucune
@@ -417,17 +418,9 @@ body::before {
    principe "enter/exit along the same path"). Déclenchée via la classe
    .dialog-closing, ajoutée par closeDialogAnimated() avant l'appel réel
    à .close() — voir plus bas dans le script. */
-.app-dialog.dialog-closing {
-  animation: dialogOut .28s var(--ease-out) forwards;
-}
 .app-dialog.dialog-closing::backdrop {
-  animation: backdropOut .28s var(--ease-out) forwards;
+  opacity: 0;
 }
-@keyframes dialogOut {
-  from { opacity: 1; transform: translateY(0) scale(1); }
-  to   { opacity: 0; transform: translateY(10px) scale(.97); }
-}
-@keyframes backdropOut { from { opacity: 1; } to { opacity: 0; } }
 
 .dialog-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -2769,10 +2762,10 @@ function animateOverlayIn(overlay, box) {
   overlay.style.opacity = "0";
   box.style.opacity = "0";
   box.style.transform = "translateY(10px) scale(.97)";
-  createSpring({ damping: 1, response: 0.28, value: 0 }).to(1, {
+  createSpring({ damping: 1, response: 0.35, value: 0 }).to(1, {
     onUpdate: (v) => { overlay.style.opacity = v; },
   });
-  createSpring({ damping: 1, response: 0.32, value: 0 }).to(1, {
+  createSpring({ damping: 1, response: 0.35, value: 0 }).to(1, {
     onUpdate: (v) => {
       box.style.opacity = v;
       box.style.transform = `translateY(${(1 - v) * 10}px) scale(${.97 + .03 * v})`;
@@ -2785,11 +2778,11 @@ function animateOverlayOut(overlay, box, onDone) {
   if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) { overlay.remove(); if (onDone) onDone(); return; }
   let pending = 2;
   const settle = () => { if (--pending <= 0) { overlay.remove(); if (onDone) onDone(); } };
-  createSpring({ damping: 1, response: 0.2, value: 1 }).to(0, {
+  createSpring({ damping: 1, response: 0.32, value: 1 }).to(0, {
     onUpdate: (v) => { overlay.style.opacity = v; },
     onComplete: settle,
   });
-  createSpring({ damping: 1, response: 0.2, value: 1 }).to(0, {
+  createSpring({ damping: 1, response: 0.32, value: 1 }).to(0, {
     onUpdate: (v) => {
       box.style.opacity = v;
       box.style.transform = `translateY(${(1 - v) * 10}px) scale(${.97 + .03 * v})`;
@@ -3341,25 +3334,46 @@ function createSpring({ damping = 1, response = 0.35, value = 0 } = {}) {
   };
 }
 
-/* Fermeture animée symétrique à l'ouverture — audit apple-design du
-   10/07/2026, §7 "Spatial consistency". N'affecte que les dialogs
-   .app-dialog (qui ont une animation d'entrée à symétriser) ; les autres
-   se ferment normalement, sans changement de comportement. */
+/* Ouverture/fermeture du panneau de dialog pilotées par ressort — audit
+   apple-design du 10/07/2026, correctif après relecture de la skill
+   fraîchement réinstallée : les valeurs utilisées précédemment (jusqu'à
+   0.2) sortaient de la plage "Default UI spring" documentée dans le
+   Quick Reference de la skill (damping 1.0, response 0.3–0.4). Corrigé
+   ici pour respecter exactement cette plage, avec les mêmes valeurs
+   utilisées partout pour rester cohérent (§7 Spatial consistency : la
+   sortie doit être un vrai miroir de l'entrée, pas juste visuellement
+   mais aussi dans son timing). Le ::backdrop reste un simple fondu CSS
+   (contrainte technique : pseudo-élément non manipulable via JS). */
+function openDialogAnimated(dialogEl) {
+  dialogEl.showModal();
+  if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) return;
+  dialogEl.style.opacity = "0";
+  dialogEl.style.transform = "translateY(10px) scale(.97)";
+  createSpring({ damping: 1, response: 0.35, value: 0 }).to(1, {
+    onUpdate: (v) => {
+      dialogEl.style.opacity = v;
+      dialogEl.style.transform = `translateY(${(1 - v) * 10}px) scale(${.97 + .03 * v})`;
+    },
+    onComplete: () => { dialogEl.style.opacity = ""; dialogEl.style.transform = ""; },
+  });
+}
+
 function closeDialogAnimated(dialogEl) {
   if (!dialogEl) return;
   if (!dialogEl.classList.contains("app-dialog") || !dialogEl.open) { dialogEl.close(); return; }
   if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) { dialogEl.close(); return; }
-  let done = false;
-  const finish = () => {
-    if (done) return;
-    done = true;
-    dialogEl.classList.remove("dialog-closing");
-    dialogEl.removeEventListener("animationend", finish);
-    dialogEl.close();
-  };
-  dialogEl.addEventListener("animationend", finish, { once: true });
-  dialogEl.classList.add("dialog-closing");
-  setTimeout(finish, 400); // filet de sécurité si animationend ne se déclenche jamais
+  dialogEl.classList.add("dialog-closing"); // ne pilote plus que le fondu du ::backdrop désormais
+  createSpring({ damping: 1, response: 0.32, value: 1 }).to(0, {
+    onUpdate: (v) => {
+      dialogEl.style.opacity = v;
+      dialogEl.style.transform = `translateY(${(1 - v) * 10}px) scale(${.97 + .03 * v})`;
+    },
+    onComplete: () => {
+      dialogEl.classList.remove("dialog-closing");
+      dialogEl.style.opacity = ""; dialogEl.style.transform = "";
+      dialogEl.close();
+    },
+  });
 }
 
 /* Fondu croisé piloté par ressort entre panels — audit apple-design du
@@ -3384,14 +3398,14 @@ function switchTabPanel(panel) {
 
   panel.hidden = false;
   panel.classList.add("active");
-  if (!tabPanelSprings.has(panel)) tabPanelSprings.set(panel, createSpring({ damping: 1, response: 0.28, value: 0 }));
+  if (!tabPanelSprings.has(panel)) tabPanelSprings.set(panel, createSpring({ damping: 1, response: 0.35, value: 0 }));
   tabPanelSprings.get(panel).to(1, {
     onUpdate: (v) => { panel.style.opacity = v; },
     onComplete: () => { panel.style.opacity = ""; },
   });
 
   if (current) {
-    if (!tabPanelSprings.has(current)) tabPanelSprings.set(current, createSpring({ damping: 1, response: 0.22, value: 1 }));
+    if (!tabPanelSprings.has(current)) tabPanelSprings.set(current, createSpring({ damping: 1, response: 0.32, value: 1 }));
     tabPanelSprings.get(current).to(0, {
       onUpdate: (v) => { current.style.opacity = v; },
       onComplete: () => { current.classList.remove("active"); current.hidden = true; current.style.opacity = ""; },
@@ -3671,7 +3685,7 @@ function setupConsolidatedInvoice() {
     }).join("");
     listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener("change", refreshTotal));
     refreshTotal();
-    dialog.showModal();
+    openDialogAnimated(dialog);
   }
 
   document.addEventListener("click", (e) => {
@@ -3919,7 +3933,7 @@ function setupTableRubberband(wrap, table) {
 
     clearTimeout(releaseTimer);
     releaseTimer = setTimeout(() => {
-      if (!spring) spring = createSpring({ damping: 1, response: 0.32, value: offset });
+      if (!spring) spring = createSpring({ damping: 0.8, response: 0.35, value: offset }); // momentum (relâchement de molette) -> léger rebond, cf. skill §4
       spring.jump(offset);
       spring.to(0, {
         onUpdate: (v) => { offset = v; table.style.transform = Math.abs(v) > 0.5 ? `translateX(${v}px)` : ""; },
@@ -4379,7 +4393,7 @@ function renderKpiChart(vehicules, range) {
       bar.style.height = targetPct + "%";
       return;
     }
-    const spring = createSpring({ damping: 1, response: 0.32, value: 0 });
+    const spring = createSpring({ damping: 1, response: 0.35, value: 0 });
     spring.to(targetPct, { onUpdate: (v) => { bar.style.height = Math.max(0, v) + "%"; } });
   });
 }
@@ -5400,7 +5414,7 @@ function setupUsersAdmin() {
   if (!dialog || !openBtn) return;
 
   openBtn.addEventListener("click", async () => {
-    dialog.showModal();
+    openDialogAnimated(dialog);
     await renderUsersTable();
   });
   closeBtn.addEventListener("click", () => closeDialogAnimated(dialog));
@@ -5828,7 +5842,7 @@ function setupAddVehicle() {
     concLabel.textContent = CONCESSION_LABELS[currentConcession] || currentConcession;
     form.reset();
     updateChecklist();
-    dialog.showModal();
+    openDialogAnimated(dialog);
     document.getElementById("av-client").focus();
   });
   closeBtn.addEventListener("click", () => closeDialogAnimated(dialog));
