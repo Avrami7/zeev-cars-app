@@ -111,6 +111,36 @@
     transition-duration: .01ms !important;
   }
 }
+
+/* Transparence réduite — audit apple-design du 10/07/2026 : jusqu'ici
+   aucune règle ne répondait à cette préférence système. Les surfaces
+   translucides (barre du haut, arrière-plans de modales) deviennent
+   quasi-opaques et perdent leur flou, sans changer la charte de couleurs
+   (mêmes teintes --sur/--bg, juste sans transparence ni backdrop-filter). */
+@media (prefers-reduced-transparency: reduce) {
+  .topbar {
+    background: var(--sur) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .app-dialog::backdrop,
+  #kpi-client-dialog::backdrop {
+    background: rgba(0,0,0,.85) !important;
+    backdrop-filter: none !important;
+  }
+}
+
+/* Contraste renforcé — audit apple-design du 10/07/2026 : idem, absent
+   jusqu'ici. Bordures explicites et plus marquées sur les surfaces clés,
+   sans changer les couleurs de la charte (--brd existant, juste plus
+   visible et plus systématique). */
+@media (prefers-contrast: more) {
+  .topbar { border-bottom: 2px solid var(--brd2); }
+  .app-dialog { border: 1.5px solid var(--brd2); }
+  .tb-btn, .ntab.active, .kpi-card, .table-search, .auth-inp, .auth-sel {
+    border-width: 1.5px !important;
+  }
+}
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 html, body {
@@ -380,6 +410,25 @@ body::before {
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Sortie miroir de l'entrée — audit apple-design du 10/07/2026 : la
+   fermeture native de <dialog> (.close()) était instantanée, sans aucune
+   animation, alors que l'ouverture en avait une (asymétrie contraire au
+   principe "enter/exit along the same path"). Déclenchée via la classe
+   .dialog-closing, ajoutée par closeDialogAnimated() avant l'appel réel
+   à .close() — voir plus bas dans le script. */
+.app-dialog.dialog-closing {
+  animation: dialogOut .28s var(--ease-out) forwards;
+}
+.app-dialog.dialog-closing::backdrop {
+  animation: backdropOut .28s var(--ease-out) forwards;
+}
+@keyframes dialogOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(10px) scale(.97); }
+}
+@keyframes backdropOut { from { opacity: 1; } to { opacity: 0; } }
+
 .dialog-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px; border-bottom: 1px solid var(--brd);
@@ -743,11 +792,6 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 .tab-panel        { display: none; }
 .tab-panel.active {
   display: block;
-  animation: panelIn .42s var(--ease-out);
-}
-@keyframes panelIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* =====================================================================
@@ -858,7 +902,7 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
   font-size: 9px; color: var(--tx3); font-weight: 700;
   text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px;
 }
-.kpi-value { font-size: 18px; font-weight: 700; color: var(--tx); font-family: var(--mono); transition: color .3s var(--ease); }
+.kpi-value { font-size: 18px; font-weight: 700; color: var(--tx); font-family: var(--mono); letter-spacing: -.01em; transition: color .3s var(--ease); }
 .kpi-value.gr { color: var(--gr); }
 .kpi-value.rd { color: var(--rd); }
 .kpi-value.am { color: #c98a13; }
@@ -964,7 +1008,7 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
   padding: 14px 16px; text-align: center;
 }
 .exec-kpi-card .ek-label { font-size: 9.5px; color: var(--tx2); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; font-weight: 600; }
-.exec-kpi-card .ek-value { font-size: 20px; font-weight: 800; font-family: var(--mono); color: var(--tx); line-height: 1; }
+.exec-kpi-card .ek-value { font-size: 20px; font-weight: 800; font-family: var(--mono); color: var(--tx); line-height: 1; letter-spacing: -.015em; }
 .exec-kpi-card .ek-sub { font-size: 9px; color: var(--tx3); margin-top: 4px; }
 .exec-kpi-card.accent { background: linear-gradient(135deg, var(--ac) 0%, var(--ac2) 100%); border-color: transparent; }
 .exec-kpi-card.accent .ek-label { color: rgba(255,255,255,.85); }
@@ -1043,6 +1087,7 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
    ===================================================================== */
 .table-wrap {
   overflow-x: auto;
+  overscroll-behavior-x: contain;
   background: var(--sur);
   border-radius: var(--r);
   border: 1px solid var(--brd);
@@ -1377,7 +1422,7 @@ table.data-table tbody tr.row-livre select {
   .invoice-table { width: 100%; border-collapse: collapse; font-size: 12px; }
   .invoice-table th { text-align: left; font-weight: 600; padding: 6px 9px; border: 1px solid #999; background: #f4f4f4; width: 45%; }
   .invoice-table td { padding: 6px 9px; border: 1px solid #999; }
-  .invoice-total th, .invoice-total td { font-weight: 800; font-size: 14px; background: #eef1fb; }
+  .invoice-total th, .invoice-total td { font-weight: 800; font-size: 14px; background: #eef1fb; letter-spacing: -.01em; }
   .invoice-note { font-size: 10px; color: #444; margin-top: 8px; line-height: 1.5; }
   .invoice-footer { margin-top: 34px; font-size: 9px; color: #888; border-top: 1px solid #ccc; padding-top: 8px; }
 
@@ -1393,7 +1438,7 @@ table.data-table tbody tr.row-livre select {
   .invoice-totals-table td { padding: 7px 9px; border: none; }
   .invoice-totals-table td:first-child { text-align: right; color: #444; }
   .invoice-totals-table td:last-child { text-align: right; width: 130px; }
-  .invoice-totals-table tr.ttc td { font-weight: 800; font-size: 13px; background: #eef1fb; border-top: 1px solid #000; }
+  .invoice-totals-table tr.ttc td { font-weight: 800; font-size: 13px; background: #eef1fb; border-top: 1px solid #000; letter-spacing: -.01em; }
   .invoice-payment {
     margin-top: 30px; padding: 16px 20px; background: #f4f6fa; border-radius: 6px;
     font-size: 11px; line-height: 1.9;
@@ -3188,21 +3233,140 @@ function panelTemplate(key, isActive) {
     </section>`;
 }
 
+/* =====================================================================
+   RESSORT PHYSIQUE MINIMAL — audit apple-design du 10/07/2026
+   Aucune librairie externe (Motion/Framer) n'est chargée dans l'app —
+   ce moteur reproduit le modèle damping/response de la skill via une
+   intégration numérique simple (oscillateur harmonique amorti, RAF).
+   Contrairement à une transition CSS à durée fixe, il est interruptible
+   à tout instant : relancer .to() en cours de mouvement repart de la
+   valeur ET de la vélocité affichées à l'instant présent, jamais de la
+   valeur cible — c'est le principe §3 "Interruptibility" de la skill.
+   damping=1 (défaut) = critically damped, aucun rebond. Respecte
+   prefers-reduced-motion via jump() (saut instantané, sans animation).
+   ===================================================================== */
+const PREFERS_REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
+
+function createSpring({ damping = 1, response = 0.35, value = 0 } = {}) {
+  let current = value, velocity = 0, target = value, rafId = null, lastTs = null;
+  let onUpdate = null, onComplete = null;
+  const angularFreq = (2 * Math.PI) / response;
+
+  function tick(dt) {
+    const c = 2 * damping * angularFreq;
+    const k = angularFreq * angularFreq;
+    const accel = -k * (current - target) - c * velocity;
+    velocity += accel * dt;
+    current += velocity * dt;
+  }
+
+  function loop(ts) {
+    if (lastTs === null) lastTs = ts;
+    let dt = Math.min((ts - lastTs) / 1000, 0.05); // borne le pas pour éviter un saut après un onglet en arrière-plan
+    lastTs = ts;
+    tick(dt);
+    if (onUpdate) onUpdate(current);
+    const settled = Math.abs(current - target) < 0.001 && Math.abs(velocity) < 0.001;
+    if (settled) {
+      current = target; velocity = 0;
+      if (onUpdate) onUpdate(current);
+      rafId = null; lastTs = null;
+      if (onComplete) onComplete();
+      return;
+    }
+    rafId = requestAnimationFrame(loop);
+  }
+
+  return {
+    to(newTarget, opts = {}) {
+      target = newTarget;
+      onUpdate = opts.onUpdate || onUpdate;
+      onComplete = opts.onComplete || null;
+      if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) {
+        current = target; velocity = 0;
+        if (onUpdate) onUpdate(current);
+        if (onComplete) onComplete();
+        return;
+      }
+      if (!rafId) { lastTs = null; rafId = requestAnimationFrame(loop); }
+    },
+    jump(v) {
+      current = v; target = v; velocity = 0;
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    },
+    stop() { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } },
+    get value() { return current; },
+  };
+}
+
+/* Fermeture animée symétrique à l'ouverture — audit apple-design du
+   10/07/2026, §7 "Spatial consistency". N'affecte que les dialogs
+   .app-dialog (qui ont une animation d'entrée à symétriser) ; les autres
+   se ferment normalement, sans changement de comportement. */
+function closeDialogAnimated(dialogEl) {
+  if (!dialogEl) return;
+  if (!dialogEl.classList.contains("app-dialog") || !dialogEl.open) { dialogEl.close(); return; }
+  if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) { dialogEl.close(); return; }
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    dialogEl.classList.remove("dialog-closing");
+    dialogEl.removeEventListener("animationend", finish);
+    dialogEl.close();
+  };
+  dialogEl.addEventListener("animationend", finish, { once: true });
+  dialogEl.classList.add("dialog-closing");
+  setTimeout(finish, 400); // filet de sécurité si animationend ne se déclenche jamais
+}
+
+/* Fondu croisé piloté par ressort entre panels — audit apple-design du
+   10/07/2026, §7 "Spatial consistency" : l'ancien panel disparaissait
+   instantanément (hidden) pendant que le nouveau avait une animation
+   d'entrée — asymétrique. Les deux opacités sont maintenant pilotées
+   indépendamment par ressort (interruptible : cliquer un autre onglet en
+   pleine transition relance depuis l'état affiché, jamais de saut). */
+const tabPanelSprings = new WeakMap();
+function switchTabPanel(panel) {
+  if (!panel) return;
+  const current = document.querySelector(".tab-panel.active");
+  if (current === panel) return;
+
+  if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) {
+    if (current) { current.classList.remove("active"); current.hidden = true; current.style.opacity = ""; }
+    panel.classList.add("active");
+    panel.hidden = false;
+    panel.style.opacity = "";
+    return;
+  }
+
+  panel.hidden = false;
+  panel.classList.add("active");
+  if (!tabPanelSprings.has(panel)) tabPanelSprings.set(panel, createSpring({ damping: 1, response: 0.28, value: 0 }));
+  tabPanelSprings.get(panel).to(1, {
+    onUpdate: (v) => { panel.style.opacity = v; },
+    onComplete: () => { panel.style.opacity = ""; },
+  });
+
+  if (current) {
+    if (!tabPanelSprings.has(current)) tabPanelSprings.set(current, createSpring({ damping: 1, response: 0.22, value: 1 }));
+    tabPanelSprings.get(current).to(0, {
+      onUpdate: (v) => { current.style.opacity = v; },
+      onComplete: () => { current.classList.remove("active"); current.hidden = true; current.style.opacity = ""; },
+    });
+  }
+}
+
 function bindTabButton(btn) {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".ntab").forEach(b => {
       b.classList.remove("active");
       b.setAttribute("aria-selected", "false");
     });
-    document.querySelectorAll(".tab-panel").forEach(p => {
-      p.classList.remove("active");
-      p.hidden = true;
-    });
     btn.classList.add("active");
     btn.setAttribute("aria-selected", "true");
     const panel = document.getElementById("panel-" + btn.dataset.tab);
-    panel.classList.add("active");
-    panel.hidden = false;
+    switchTabPanel(panel);
   });
   btn.addEventListener("keydown", (e) => {
     const tabs = [...document.querySelectorAll(".ntab")];
@@ -3457,8 +3621,8 @@ function setupConsolidatedInvoice() {
     const btn = e.target.closest(".consolidated-invoice-btn");
     if (btn) openDialog(btn.dataset.concession);
   });
-  closeBtn.addEventListener("click", () => dialog.close());
-  dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+  closeBtn.addEventListener("click", () => closeDialogAnimated(dialog));
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) closeDialogAnimated(dialog); });
   selectAllBtn.addEventListener("click", () => {
     listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
     refreshTotal();
@@ -3504,7 +3668,7 @@ function setupConsolidatedInvoice() {
       renderAll();
       setSyncStatus("Modifications non enregistrées", "dirty");
       toast(`Facture ${numero} générée pour ${vehicules.length} véhicule(s). Pensez à enregistrer sur GitHub.`, "success");
-      dialog.close();
+      closeDialogAnimated(dialog);
     } catch (e) {
       toast("Impossible de générer la facture : " + e.message, "error");
     } finally {
@@ -3655,6 +3819,56 @@ function setupTwinScrollbar(topId, wrapId) {
      soit manuellement après chaque renderAll(). */
   new ResizeObserver(syncWidth).observe(table);
   syncWidth();
+
+  setupTableRubberband(wrap, table);
+}
+
+/* Résistance progressive en fin de course — audit apple-design du
+   10/07/2026, §9 "Rubber-banding". Le tactile a déjà un rebond natif
+   (iOS/Android gèrent ça eux-mêmes) — cette fonction comble le vrai trou :
+   la molette/trackpad sur desktop, qui s'arrête net aux extrémités sans
+   ce correctif. N'agit que sur une transform du <table> lui-même, jamais
+   sur wrap.scrollLeft — ne peut donc pas interférer avec la synchronisation
+   des deux barres de défilement ci-dessus, qui reste inchangée. */
+function setupTableRubberband(wrap, table) {
+  if (wrap.dataset.rubberbandBound === "true") return;
+  wrap.dataset.rubberbandBound = "true";
+
+  function rubberband(overshoot, dimension, constant = 0.55) {
+    return (overshoot * dimension * constant) / (dimension + constant * Math.abs(overshoot));
+  }
+
+  let offset = 0;
+  let spring = null;
+  let releaseTimer = null;
+
+  wrap.addEventListener("wheel", (e) => {
+    if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) return;
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
+    if (!delta) return;
+
+    const maxScroll = wrap.scrollWidth - wrap.clientWidth;
+    const atStart = wrap.scrollLeft <= 0 && delta < 0;
+    const atEnd   = wrap.scrollLeft >= maxScroll - 1 && delta > 0;
+    if (!atStart && !atEnd) {
+      if (offset !== 0) { offset = 0; table.style.transform = ""; }
+      return;
+    }
+
+    e.preventDefault();
+    if (spring) spring.stop();
+    offset = rubberband(offset - delta * 0.5, wrap.clientWidth || 300);
+    table.style.transform = `translateX(${offset}px)`;
+
+    clearTimeout(releaseTimer);
+    releaseTimer = setTimeout(() => {
+      if (!spring) spring = createSpring({ damping: 1, response: 0.32, value: offset });
+      spring.jump(offset);
+      spring.to(0, {
+        onUpdate: (v) => { offset = v; table.style.transform = Math.abs(v) > 0.5 ? `translateX(${v}px)` : ""; },
+      });
+    }, 120);
+  }, { passive: false });
 }
 
 function setupTwinScrollbars() {
@@ -4089,11 +4303,28 @@ function renderKpiChart(vehicules, range) {
   const html = mois.map(m => `
     <div class="kpi-chart-col">
       <div class="kpi-chart-val">${m.total > 0 ? fmtEUR(m.total) : ""}</div>
-      <div class="kpi-chart-bar" style="height:${Math.max(2, (m.total / max) * 100)}%"></div>
+      <div class="kpi-chart-bar" data-target-pct="${Math.max(2, (m.total / max) * 100)}" style="height:0%"></div>
       <div class="kpi-chart-label">${m.label}</div>
     </div>`).join("");
 
   document.getElementById("kpi-chart").innerHTML = html;
+
+  /* Les barres poussent depuis 0 via un ressort — audit apple-design du
+     10/07/2026 : remplace la transition CSS à durée fixe qui régissait
+     jusqu'ici ce changement (elle ne pouvait pas repartir de la vitesse
+     en cours si on rebasculait vite entre 12 mois / historique complet ;
+     ici, comme le graphique est entièrement régénéré à chaque bascule,
+     chaque barre est une nouvelle entrée animée, cohérent avec "materialize,
+     don't just fade" — §12). */
+  document.querySelectorAll("#kpi-chart .kpi-chart-bar").forEach((bar, i) => {
+    const targetPct = parseFloat(bar.dataset.targetPct);
+    if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) {
+      bar.style.height = targetPct + "%";
+      return;
+    }
+    const spring = createSpring({ damping: 1, response: 0.32, value: 0 });
+    spring.to(targetPct, { onUpdate: (v) => { bar.style.height = Math.max(0, v) + "%"; } });
+  });
 }
 
 (function setupChartRangeToggle() {
@@ -5114,8 +5345,8 @@ function setupUsersAdmin() {
     dialog.showModal();
     await renderUsersTable();
   });
-  closeBtn.addEventListener("click", () => dialog.close());
-  dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+  closeBtn.addEventListener("click", () => closeDialogAnimated(dialog));
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) closeDialogAnimated(dialog); });
 }
 
 const SCOPE_LABEL = { FULL: "Complet", LIVRAISON_ONLY: "Livraison uniquement" };
@@ -5178,6 +5409,18 @@ window.addEventListener("beforeunload", (e) => {
    de s'exécuter normalement — addEventListener est additif).
    ===================================================================== */
 (function setupRippleFX() {
+  /* Retour au contact, pas au relâchement — audit apple-design du
+     10/07/2026, §1 "Response". Le ripple se déclenche maintenant sur
+     pointerdown (le tout premier contact, doigt ou souris), plus sur
+     click (qui ne se déclenche qu'au relâchement, donc perceptiblement en
+     retard). L'action elle-même (bascule d'onglet, soumission, etc.)
+     reste sur click — on ne touche pas à la logique fonctionnelle ni à
+     l'accessibilité clavier (Entrée/Espace déclenchent click, jamais
+     pointerdown), seul le retour visuel devient instantané.
+     .is-pressed vient compléter :active, peu fiable sur certains
+     navigateurs tactiles (notamment iOS Safari) sans écouteur dédié. */
+  const PRESSABLE_SELECTOR = ".tb-btn, .ntab, .auth-btn, .account-pill, .invoice-btn, .archive-vehicle-btn, .chart-range-btn, .archived-toggle-btn, .add-vehicle-btn, .consolidated-invoice-btn, .kpi-client-btn";
+
   const style = document.createElement('style');
   style.textContent = `
     .tb-btn, .ntab, .auth-btn, .account-pill, .invoice-btn { position: relative; overflow: hidden; }
@@ -5187,12 +5430,25 @@ window.addEventListener("beforeunload", (e) => {
       transform: scale(0); animation: fxRippleAnim .55s var(--ease-out, ease);
     }
     @keyframes fxRippleAnim { to { transform: scale(2.6); opacity: 0; } }
+    .is-pressed { transform: translateY(0) scale(.97); }
+    @media (prefers-reduced-motion: reduce) {
+      .fx-ripple { animation-duration: .01s; }
+      .is-pressed { transform: none; opacity: .85; }
+    }
   `;
   document.head.appendChild(style);
 
-  document.addEventListener('click', (e) => {
-    const el = e.target.closest('.tb-btn, .ntab, .auth-btn, .account-pill, .invoice-btn');
+  document.addEventListener('pointerdown', (e) => {
+    const el = e.target.closest(PRESSABLE_SELECTOR);
     if (!el || el.disabled) return;
+
+    el.classList.add('is-pressed');
+    const release = () => el.classList.remove('is-pressed');
+    el.addEventListener('pointerup', release, { once: true });
+    el.addEventListener('pointercancel', release, { once: true });
+    el.addEventListener('pointerleave', release, { once: true });
+
+    if (!el.matches('.tb-btn, .ntab, .auth-btn, .account-pill, .invoice-btn')) return;
     const rect = el.getBoundingClientRect();
     const size = Math.max(rect.width, rect.height);
     const span = document.createElement('span');
@@ -5517,8 +5773,8 @@ function setupAddVehicle() {
     dialog.showModal();
     document.getElementById("av-client").focus();
   });
-  closeBtn.addEventListener("click", () => dialog.close());
-  dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+  closeBtn.addEventListener("click", () => closeDialogAnimated(dialog));
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) closeDialogAnimated(dialog); });
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -5558,7 +5814,7 @@ function setupAddVehicle() {
     updateSaveBtn();
     renderAll();
     setSyncStatus("Modifications non enregistrées", "dirty");
-    dialog.close();
+    closeDialogAnimated(dialog);
     const eligibleNow = computeEligibilite(vehicule) === "FACTURABLE";
     toast(`Véhicule ${vehicule.id} ajouté (${client})${eligibleNow ? " — déjà Facturable" : ""}. Pensez à enregistrer.`, "success");
   });
