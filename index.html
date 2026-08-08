@@ -2979,6 +2979,7 @@ async function bootApp() {
   setupExport();
   setupImport();
   setupLocalBackup();
+  setupDialogEscapeConsistency();
   setupExportConsistencyCheck();
   setupAddVehicle();
   setupConsolidatedInvoice();
@@ -3396,6 +3397,21 @@ function switchTabPanel(panel) {
       onComplete: () => { current.classList.remove("active"); current.hidden = true; current.style.opacity = ""; },
     });
   }
+}
+
+/* Échap ferme un <dialog> nativement et instantanément, en contournant
+   closeDialogAnimated() — audit apple-design du 10/07/2026, régression
+   trouvée en auto-relecture : Échap et le bouton ✕ redevenaient
+   asymétriques l'un par rapport à l'autre. L'événement "cancel" (natif,
+   déclenché par Échap) est intercepté ici pour repasser par le même
+   chemin de fermeture animée que tous les autres déclencheurs. */
+function setupDialogEscapeConsistency() {
+  document.querySelectorAll("dialog.app-dialog").forEach((dialogEl) => {
+    dialogEl.addEventListener("cancel", (e) => {
+      e.preventDefault();
+      closeDialogAnimated(dialogEl);
+    });
+  });
 }
 
 function bindTabButton(btn) {
