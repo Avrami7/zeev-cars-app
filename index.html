@@ -3283,7 +3283,7 @@ function panelTemplate(key, isActive) {
 const PREFERS_REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
 
 function createSpring({ damping = 1, response = 0.35, value = 0 } = {}) {
-  let current = value, velocity = 0, target = value, rafId = null, lastTs = null;
+  let current = value, velocity = 0, target = value, rafId = null, lastTs = null, startTs = null, travelDistance = 0;
   let onUpdate = null, onComplete = null;
   const angularFreq = (2 * Math.PI) / response;
 
@@ -3297,15 +3297,30 @@ function createSpring({ damping = 1, response = 0.35, value = 0 } = {}) {
 
   function loop(ts) {
     if (lastTs === null) lastTs = ts;
+    if (startTs === null) startTs = ts;
     let dt = Math.min((ts - lastTs) / 1000, 0.05); // borne le pas pour éviter un saut après un onglet en arrière-plan
     lastTs = ts;
     tick(dt);
     if (onUpdate) onUpdate(current);
-    const settled = Math.abs(current - target) < 0.001 && Math.abs(velocity) < 0.001;
+
+    /* Bug réel trouvé en mesurant image par image (audit apple-design du
+       10/07/2026) : un seuil de stabilisation absolu (ex. écart < 0.001)
+       ne s'adapte pas à l'échelle de la valeur animée — correct pour une
+       opacité (0 à 1) mais beaucoup trop strict pour un pourcentage de
+       hauteur de barre de graphique (0 à 100), ce qui retardait
+       "onComplete" bien au-delà du response demandé (666ms mesurés pour
+       un response de 350ms). Le critère est maintenant RELATIF à la
+       distance parcourue depuis le déclenchement, plus un filet de temps
+       borné à 3× le response — quelle que soit l'échelle, l'animation se
+       termine dans un délai prévisible et cohérent avec le paramètre
+       demandé. */
+    const elapsed = (ts - startTs) / 1000;
+    const closeEnough = Math.abs(current - target) < Math.max(0.01, travelDistance * 0.01);
+    const settled = closeEnough || elapsed > response * 3;
     if (settled) {
       current = target; velocity = 0;
       if (onUpdate) onUpdate(current);
-      rafId = null; lastTs = null;
+      rafId = null; lastTs = null; startTs = null;
       if (onComplete) onComplete();
       return;
     }
@@ -3314,6 +3329,7 @@ function createSpring({ damping = 1, response = 0.35, value = 0 } = {}) {
 
   return {
     to(newTarget, opts = {}) {
+      travelDistance = Math.abs(newTarget - current) || travelDistance || 1;
       target = newTarget;
       onUpdate = opts.onUpdate || onUpdate;
       onComplete = opts.onComplete || null;
@@ -3327,6 +3343,7 @@ function createSpring({ damping = 1, response = 0.35, value = 0 } = {}) {
     },
     jump(v) {
       current = v; target = v; velocity = 0;
+      startTs = null; lastTs = null;
       if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     },
     stop() { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } },
@@ -3344,12 +3361,37 @@ function createSpring({ damping = 1, response = 0.35, value = 0 } = {}) {
    sortie doit être un vrai miroir de l'entrée, pas juste visuellement
    mais aussi dans son timing). Le ::backdrop reste un simple fondu CSS
    (contrainte technique : pseudo-élément non manipulable via JS). */
+/* Ouverture/fermeture du panneau de dialog pilotées par ressort — audit
+   apple-design du 10/07/2026, correctif après relecture de la skill
+   fraîchement réinstallée : les valeurs utilisées précédemment (jusqu'à
+   0.2) sortaient de la plage "Default UI spring" documentée dans le
+   Quick Reference de la skill (damping 1.0, response 0.3–0.4). Corrigé
+   ici pour respecter exactement cette plage, avec les mêmes valeurs
+   utilisées partout pour rester cohérent (§7 Spatial consistency : la
+   sortie doit être un vrai miroir de l'entrée, pas juste visuellement
+   mais aussi dans son timing). Le ::backdrop reste un simple fondu CSS
+   (contrainte technique : pseudo-élément non manipulable via JS).
+
+   Un seul ressort par dialog (dialogSprings, WeakMap) — bug réel trouvé
+   en vérifiant image par image : fermer un dialog avant que son ouverture
+   n'ait fini de se stabiliser faisait cohabiter deux instances de ressort
+   sur le même élément, qui se battaient sur dialogEl.style.opacity
+   (l'opacité remontait puis se vidait au milieu de la fermeture). Réutiliser
+   la même instance via .to() repart proprement de la valeur et de la
+   vitesse affichées à l'instant présent — c'est exactement l'interruption
+   propre que le §3 de la skill exige. */
+const dialogSprings = new WeakMap();
+function getDialogSpring(dialogEl, response) {
+  if (!dialogSprings.has(dialogEl)) dialogSprings.set(dialogEl, createSpring({ damping: 1, response, value: 0 }));
+  return dialogSprings.get(dialogEl);
+}
+
 function openDialogAnimated(dialogEl) {
   dialogEl.showModal();
   if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) return;
-  dialogEl.style.opacity = "0";
-  dialogEl.style.transform = "translateY(10px) scale(.97)";
-  createSpring({ damping: 1, response: 0.35, value: 0 }).to(1, {
+  const spring = getDialogSpring(dialogEl, 0.35);
+  dialogEl.style.opacity = spring.value; // repart de la valeur affichée actuelle, jamais de 0 à froid
+  spring.to(1, {
     onUpdate: (v) => {
       dialogEl.style.opacity = v;
       dialogEl.style.transform = `translateY(${(1 - v) * 10}px) scale(${.97 + .03 * v})`;
@@ -3363,7 +3405,8 @@ function closeDialogAnimated(dialogEl) {
   if (!dialogEl.classList.contains("app-dialog") || !dialogEl.open) { dialogEl.close(); return; }
   if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) { dialogEl.close(); return; }
   dialogEl.classList.add("dialog-closing"); // ne pilote plus que le fondu du ::backdrop désormais
-  createSpring({ damping: 1, response: 0.32, value: 1 }).to(0, {
+  const spring = getDialogSpring(dialogEl, 0.35); // réutilise l'instance créée à l'ouverture (même réglage, cf. commentaire ci-dessus)
+  spring.to(0, {
     onUpdate: (v) => {
       dialogEl.style.opacity = v;
       dialogEl.style.transform = `translateY(${(1 - v) * 10}px) scale(${.97 + .03 * v})`;
