@@ -4075,6 +4075,41 @@ function setupTabs() {
     }
   });
 
+/* Bascule animée (hauteur + fondu, ressort) de la liste des véhicules
+   retirés — audit apple-design du 09/08/2026, point #3 : avant, un simple
+   classList.toggle("hidden") faisait apparaître/disparaître la liste d'un
+   coup, sans aucune transition. Un ressort par élément (WeakMap) garantit
+   une interruption propre si on clique deux fois rapidement. */
+const archivedListSprings = new WeakMap();
+function toggleArchivedList(list, willShow) {
+  if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) {
+    list.classList.toggle("hidden", !willShow);
+    return;
+  }
+  if (!archivedListSprings.has(list)) archivedListSprings.set(list, createSpring({ damping: 1, response: 0.3, value: 0 }));
+  const spring = archivedListSprings.get(list);
+
+  if (willShow) {
+    list.classList.remove("hidden");
+    list.style.overflow = "hidden";
+    const targetHeight = list.scrollHeight;
+    list.style.height = (spring.value * targetHeight) + "px";
+    list.style.opacity = spring.value;
+    spring.to(1, {
+      onUpdate: (v) => { list.style.height = (v * targetHeight) + "px"; list.style.opacity = v; },
+      onComplete: () => { list.style.height = ""; list.style.opacity = ""; list.style.overflow = ""; },
+    });
+  } else {
+    const startHeight = list.scrollHeight;
+    list.style.overflow = "hidden";
+    list.style.height = (spring.value * startHeight || startHeight) + "px";
+    spring.to(0, {
+      onUpdate: (v) => { list.style.height = (v * startHeight) + "px"; list.style.opacity = v; },
+      onComplete: () => { list.classList.add("hidden"); list.style.height = ""; list.style.opacity = ""; list.style.overflow = ""; },
+    });
+  }
+}
+
   /* Bascule d'affichage de la liste des véhicules retirés + action Restaurer */
   document.addEventListener("click", (e) => {
     const toggleBtn = e.target.closest(".archived-toggle-btn");
@@ -4083,7 +4118,7 @@ function setupTabs() {
       if (!list) return;
       const willShow = list.classList.contains("hidden");
       if (willShow) renderArchivedList(toggleBtn.dataset.listId, toggleBtn.dataset.concession);
-      list.classList.toggle("hidden", !willShow);
+      toggleArchivedList(list, willShow);
       return;
     }
     const restoreBtn = e.target.closest("[data-restore-id]");
