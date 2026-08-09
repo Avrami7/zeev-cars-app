@@ -2524,7 +2524,7 @@ function eligibiliteCellInner(v) {
   const eligBadgeBg = eligCount === 3 ? "var(--gr-bg)" : "var(--am-bg)";
   const eligBadgeTx = eligCount === 3 ? "var(--gr)" : "var(--am)";
   return `<span style="font-weight:600; color:${eligColor};">${esc(eligLabel)}</span>
-    <span style="display:inline-block; margin-left:6px; font-size:10px; font-weight:700; padding:1px 6px; border-radius:20px; background:${eligBadgeBg}; color:${eligBadgeTx}; vertical-align:middle;">${eligCount}/3</span>`;
+    <span class="elig-badge" style="display:inline-block; margin-left:6px; font-size:10px; font-weight:700; padding:1px 6px; border-radius:20px; background:${eligBadgeBg}; color:${eligBadgeTx}; vertical-align:middle;">${eligCount}/3</span>`;
 }
 
 function eligibiliteHint(v) {
@@ -3468,6 +3468,24 @@ function setupDialogEscapeConsistency() {
       e.preventDefault();
       closeDialogAnimated(dialogEl);
     });
+  });
+}
+
+/* Petit effet "materialize" (échelle + fondu, ressort rapide) sur un badge
+   ou un compteur dont la VALEUR vient de changer — demande explicite (audit
+   apple-design du 09/08/2026, point #4). Un léger rebond (damping 0.8) est
+   volontaire ici : contrairement aux transitions de panneaux/dialogs, ce
+   n'est pas un mouvement continu mais un signal ponctuel d'attention sur un
+   changement de valeur, cohérent avec le §12 "materialize, don't just
+   fade" de la skill. Toujours appelé seulement si la valeur a réellement
+   changé (voir points d'appel), jamais à chaque rendu. */
+function popBadge(el) {
+  if (!el) return;
+  if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) return;
+  el.style.transformOrigin = "center";
+  createSpring({ damping: 0.8, response: 0.28, value: 0.6 }).to(1, {
+    onUpdate: (v) => { el.style.transform = `scale(${v})`; el.style.opacity = Math.min(1, v + 0.4); },
+    onComplete: () => { el.style.transform = ""; el.style.opacity = ""; },
   });
 }
 
@@ -5303,9 +5321,12 @@ function renderArchivedList(listId, concessionKey) {
   el.innerHTML = archivedListRowsHTML(archived);
   const toggleBtn = document.querySelector(`[data-list-id="${listId}"]`);
   if (toggleBtn) {
-    toggleBtn.textContent = archived.length
+    const prevText = toggleBtn.textContent.trim();
+    const newText = archived.length
       ? `🗑 Véhicules retirés (${archived.length})`
       : `🗑 Véhicules retirés`;
+    toggleBtn.textContent = newText;
+    if (prevText && prevText !== newText) popBadge(toggleBtn);
   }
 }
 
@@ -5389,8 +5410,12 @@ function attachCellHandlers(tableId, concession) {
         const penaliteCell    = row.querySelector('[data-col="penalite"]');
         if (commissionCell)  commissionCell.textContent  = fmtEUR(commission);
         if (eligibiliteCell) {
+          const prevBadge = eligibiliteCell.querySelector(".elig-badge");
+          const prevCount = prevBadge ? prevBadge.textContent : null;
           eligibiliteCell.innerHTML = eligibiliteCellInner(v);
           eligibiliteCell.title     = eligibiliteHint(v);
+          const newBadge = eligibiliteCell.querySelector(".elig-badge");
+          if (newBadge && prevCount !== null && newBadge.textContent !== prevCount) popBadge(newBadge);
         }
         if (penaliteCell) {
           const penalty = computeLatePenalty(v);
