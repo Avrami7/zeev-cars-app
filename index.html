@@ -1264,12 +1264,12 @@ table.data-table tbody tr.row-livre select {
   color: var(--tx); padding: 11px 18px; border-radius: var(--rs);
   font-size: 12px; font-weight: 600;
   box-shadow: var(--sh-2); z-index: 200;
-  animation: slideUp .45s var(--ease-spring);
 }
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px) scale(.95); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
+/* Le fondu/déplacement d'entrée-sortie est désormais piloté par ressort JS
+   (toast(), plus haut dans le script) — audit apple-design du 09/08/2026,
+   correctif après relecture : l'ancienne @keyframes slideUp à durée fixe
+   ne pouvait pas s'interrompre proprement si un second toast se
+   déclenchait pendant que le premier disparaissait encore. */
 .toast.error   { background: var(--rd-bg); border-color: var(--rd-brd); color: var(--rd); }
 .toast.success { background: var(--gr-bg); border-color: var(--gr-brd); color: var(--gr); }
 
@@ -2374,13 +2374,51 @@ function fmtEUR(n) {
 }
 function nowStamp() { return new Date().toLocaleString("fr-FR"); }
 
+/* Toast piloté par ressort — audit apple-design du 09/08/2026, point #1 :
+   c'est l'animation la plus vue de toute l'app (chaque sauvegarde, ajout,
+   erreur). Avant : entrée en @keyframes CSS à durée fixe, sortie instantanée
+   (asymétrique), et un second toast pendant que le premier était encore
+   affiché changeait le texte sans aucune animation. Une seule instance de
+   ressort réutilisée (un seul élément #toast à la fois) garantit une
+   interruption propre : un nouveau toast pendant un fondu de sortie repart
+   de l'opacité et de la vitesse affichées à l'instant présent. */
+let toastSpringInstance = null;
+function getToastSpring() {
+  if (!toastSpringInstance) toastSpringInstance = createSpring({ damping: 1, response: 0.32, value: 0 });
+  return toastSpringInstance;
+}
+
 function toast(msg, type = "info") {
   const el = document.getElementById("toast");
   el.textContent = msg;
   el.className = "toast " + type;
   el.classList.remove("hidden");
+
+  if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) {
+    el.style.opacity = ""; el.style.transform = "";
+  } else {
+    const spring = getToastSpring();
+    el.style.opacity = spring.value; // repart de la valeur affichée actuelle, jamais de 0 à froid
+    spring.to(1, {
+      onUpdate: (v) => {
+        el.style.opacity = v;
+        el.style.transform = `translateY(${(1 - v) * 16}px) scale(${.95 + .05 * v})`;
+      },
+      onComplete: () => { el.style.opacity = ""; el.style.transform = ""; },
+    });
+  }
+
   clearTimeout(window.__toastTimer);
-  window.__toastTimer = setTimeout(() => el.classList.add("hidden"), 4200);
+  window.__toastTimer = setTimeout(() => {
+    if (PREFERS_REDUCED_MOTION && PREFERS_REDUCED_MOTION.matches) { el.classList.add("hidden"); return; }
+    getToastSpring().to(0, {
+      onUpdate: (v) => {
+        el.style.opacity = v;
+        el.style.transform = `translateY(${(1 - v) * 16}px) scale(${.95 + .05 * v})`;
+      },
+      onComplete: () => { el.classList.add("hidden"); el.style.opacity = ""; el.style.transform = ""; },
+    });
+  }, 4200);
 }
 
 function tauxConcession(concessionKey) {
