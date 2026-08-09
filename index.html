@@ -2432,12 +2432,12 @@ function computeCommissionSimulation(v) {
 const LATE_PENALTY_CONFIG = {
   // Taux d'intérêt légal "professionnels" — 1er semestre 2026 (01/01 → 30/06/2026).
   // À VÉRIFIER ET METTRE À JOUR avant le 01/07/2026 puis chaque 01/01 et 01/07.
-  legalRateProPct: 2.62,
+  legalRateProPct: 2.75,
   // Bornes du semestre couvert par legalRateProPct — pilotent l'alerte
   // automatique legalRateIsStale()/renderLegalRateAlert() ci-dessous.
   // Format ISO, à décaler de 6 mois à chaque mise à jour du taux.
-  legalRateValidFrom:  "2026-01-01",
-  legalRateValidUntil: "2026-06-30",
+  legalRateValidFrom:  "2026-07-01",
+  legalRateValidUntil: "2026-12-31",
   // Multiplicateur plancher fixé par l'Art. L441-10 du Code de commerce.
   penaltyMultiplier: 3,
   // Indemnité forfaitaire de recouvrement (Art.8 de la convention).
