@@ -143,6 +143,16 @@
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
+
+/* Fondu doux entre thèmes clair/sombre — classe temporaire, retirée 320ms
+   après le clic (voir toggleTheme()), pour ne jamais affecter les mises à
+   jour dynamiques habituelles (couleurs de KPI, badges, etc.) en dehors de
+   ce moment précis. */
+html.theme-transitioning,
+html.theme-transitioning * {
+  transition: background-color .3s var(--ease-out), color .3s var(--ease-out), border-color .3s var(--ease-out) !important;
+}
+
 html, body {
   font-family: var(--font);
   background: var(--bg);
@@ -802,6 +812,7 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 }
 .bandeau-ok   { background: var(--pb);    color: var(--ac2); border-color: rgba(79,142,247,.3); border-left-color: var(--ac); }
 .bandeau-warn { background: var(--rd-bg); color: var(--rd);  border-color: var(--rd-brd); border-left-color: var(--rd); font-weight: 700; }
+.rate-hint-modified { border-left-width: 5px; box-shadow: 0 0 0 1px var(--rd-brd) inset; }
 .bandeau-info { background: var(--sur2);  color: var(--tx2); border-left-color: var(--tx3); }
 
 /* =====================================================================
@@ -914,6 +925,11 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 .kpi-chart-col {
   flex: 1 0 auto; min-width: 26px; display: flex; flex-direction: column; align-items: center;
   justify-content: flex-end; height: 100%; gap: 4px;
+}
+.kpi-chart-empty {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; text-align: center; padding: 0 20px;
+  font-size: 12px; color: var(--tx3);
 }
 .kpi-chart-bar {
   width: 100%; max-width: 28px; background: var(--ac);
@@ -1278,6 +1294,21 @@ table.data-table tbody tr.row-livre select {
    ===================================================================== */
 @media (max-width: 960px) {
   .kpi-row { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 900px) {
+  /* Colonnes basse priorité masquées pour réduire le défilement horizontal
+     — retour utilisateur du 09/08/2026 : "rendre le tableau responsive avec
+     des colonnes prioritaires visibles sans défilement". Reste un
+     compromis : le défilement horizontal est conservé pour tout le reste
+     (choix déjà tranché plus tôt), ces 3 colonnes sont juste celles dont
+     l'absence gêne le moins une lecture rapide (Remarques, Dernière MAJ,
+     Source restent modifiables/consultables via l'édition de la ligne). */
+  .data-table th.col-low-priority,
+  .data-table td.cell-maj,
+  .data-table td:has(input[data-field="remarques"]),
+  .data-table td:has(input[data-field="source"]) {
+    display: none;
+  }
 }
 @media (max-width: 600px) {
   .kpi-row    { grid-template-columns: repeat(2, 1fr); }
@@ -2640,7 +2671,19 @@ function applyTheme(theme) {
 }
 
 function toggleTheme() {
-  const isLight = document.documentElement.getAttribute("data-theme") === "light";
+  /* Fondu doux entre thèmes — retour utilisateur du 09/08/2026 : bascule
+     sans transition ni indication visuelle. La skill recommande d'adoucir
+     spécifiquement les changements clair/sombre même sous préférence de
+     mouvement réduit ("avoid abrupt brightness jumps"), contrairement aux
+     translations/ressorts qu'on désactive dans ce cas — donc pas de garde
+     PREFERS_REDUCED_MOTION ici, volontairement. Classe temporaire retirée
+     après la durée de la transition pour ne jamais affecter les mises à
+     jour dynamiques normales (KPI, cellules, etc.). */
+  const root = document.documentElement;
+  root.classList.add("theme-transitioning");
+  setTimeout(() => root.classList.remove("theme-transitioning"), 320);
+
+  const isLight = root.getAttribute("data-theme") === "light";
   const next = isLight ? "dark" : "light";
   applyTheme(next);
   try { localStorage.setItem(THEME_STORAGE_KEY, next); } catch (e) { /* stockage indisponible : on ignore, le thème reste valable pour la session en cours */ }
@@ -3527,6 +3570,29 @@ function popBadge(el) {
   });
 }
 
+/* Signal visuel dynamique quand un taux simulé (non signé) est modifié
+   localement — retour utilisateur du 09/08/2026 : le bandeau existant
+   expliquait déjà que ce champ n'est jamais sauvegardé, mais rien ne
+   prévenait qu'une VRAIE modification en cours risquait d'être perdue en
+   quittant l'onglet sans agir. Ne se déclenche que si la valeur diffère
+   réellement du taux officiel transmis par le Worker. */
+function flagRateModified(key, slug) {
+  const rateEl = document.getElementById("rate-" + slug);
+  const hintEl = document.getElementById(`${slug}-rate-hint`);
+  if (!rateEl || !hintEl) return;
+  const officialRate = state.contracts && state.contracts[key] ? Number(state.contracts[key].rate) : null;
+  const currentRate = parseFloat(rateEl.value);
+  const modified = officialRate !== null && !isNaN(currentRate) && Math.abs(currentRate - officialRate) > 0.001;
+  hintEl.classList.toggle("rate-hint-modified", modified);
+  if (modified && !hintEl.dataset.extendedText) {
+    hintEl.dataset.extendedText = "true";
+    hintEl.insertAdjacentHTML("beforeend", ` <strong>Modification en cours — sera perdue si vous quittez cet onglet sans agir.</strong>`);
+  } else if (!modified && hintEl.dataset.extendedText) {
+    delete hintEl.dataset.extendedText;
+    hintEl.textContent = "Valeur de travail non persistée sur GitHub — réinitialisée à chaque session.";
+  }
+}
+
 function bindTabButton(btn) {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".ntab").forEach(b => {
@@ -3583,8 +3649,14 @@ function renderConcessionTabs() {
 
   document.querySelectorAll('[data-dynamic-concession="true"].ntab').forEach(bindTabButton);
   keys.forEach(key => {
-    const rateEl = document.getElementById("rate-" + slugFor(key));
-    if (rateEl) rateEl.addEventListener("input", renderAll);
+    const slug = slugFor(key);
+    const rateEl = document.getElementById("rate-" + slug);
+    if (rateEl) {
+      rateEl.addEventListener("input", () => {
+        renderAll();
+        flagRateModified(key, slug);
+      });
+    }
   });
   if (typeof setupTwinScrollbar === "function") {
     keys.forEach(key => {
@@ -4438,20 +4510,27 @@ function renderKpiDashboard() {
   const joursEcoules    = Math.max(1, Math.round((now - debutAnnee) / 86400000));
   const estimationAnnuelle = encaisse * (365 / joursEcoules);
 
+  /* Infobulle rappelant l'agrégation multi-concessions — retour utilisateur
+     du 09/08/2026 : rien n'explicitait ce lien de calcul pour un nouvel
+     utilisateur. Construite dynamiquement à partir des concessions
+     réellement actives, pas d'une liste figée en dur. */
+  const noms = toutesLesconcessions.map(k => CONCESSION_LABELS[k] || k).join(", ");
+  const kpiTitle = `Cumul de toutes les concessions actives : ${noms}`;
+
   const cards = `
-    <div class="kpi-card"><div class="kpi-label">Total véhicules</div><div class="kpi-value">${nbTotal}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Livrés</div><div class="kpi-value gr">${nbLivres}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Facturables</div><div class="kpi-value am">${nbFacturables}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Valeur parc HT</div><div class="kpi-value" style="font-size:15px;">${fmtEUR(valeurParcHT)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Commission potentielle HT</div><div class="kpi-value gr" style="font-size:15px;">${fmtEUR(commissionPotentielle)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">À facturer</div><div class="kpi-value am">${fmtEUR(aFacturer)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Facturé — en attente</div><div class="kpi-value am">${fmtEUR(factureEnAttente)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Encaissé</div><div class="kpi-value gr">${fmtEUR(encaisse)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Total (théorique)</div><div class="kpi-value">${fmtEUR(totalTheorique)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Taux de recouvrement</div><div class="kpi-value">${tauxRecouvrement === null ? "—" : tauxRecouvrement.toFixed(0) + " %"}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Délai moyen de règlement</div><div class="kpi-value">${delaiMoyen === null ? "—" : Math.round(delaiMoyen) + " j"}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Pénalités de retard</div><div class="kpi-value ${penalitesEnCours > 0 ? "rd" : ""}">${fmtEUR(penalitesEnCours)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Estimation annuelle</div><div class="kpi-value">${fmtEUR(estimationAnnuelle)}</div></div>`;
+    <div class="kpi-card" title="${esc(kpiTitle)}"><div class="kpi-label">Total véhicules</div><div class="kpi-value">${nbTotal}</div></div>
+    <div class="kpi-card" title="${esc(kpiTitle)}"><div class="kpi-label">Livrés</div><div class="kpi-value gr">${nbLivres}</div></div>
+    <div class="kpi-card" title="${esc(kpiTitle)}"><div class="kpi-label">Facturables</div><div class="kpi-value am">${nbFacturables}</div></div>
+    <div class="kpi-card" title="${esc(kpiTitle)}"><div class="kpi-label">Valeur parc HT</div><div class="kpi-value" style="font-size:15px;">${fmtEUR(valeurParcHT)}</div></div>
+    <div class="kpi-card" title="${esc(kpiTitle)}"><div class="kpi-label">Commission potentielle HT</div><div class="kpi-value gr" style="font-size:15px;">${fmtEUR(commissionPotentielle)}</div></div>
+    <div class="kpi-card" title="${esc(kpiTitle)}"><div class="kpi-label">À facturer</div><div class="kpi-value am">${fmtEUR(aFacturer)}</div></div>
+    <div class="kpi-card" title="${esc(kpiTitle)}"><div class="kpi-label">Facturé — en attente</div><div class="kpi-value am">${fmtEUR(factureEnAttente)}</div></div>
+    <div class="kpi-card" title="${esc(kpiTitle)}"><div class="kpi-label">Encaissé</div><div class="kpi-value gr">${fmtEUR(encaisse)}</div></div>
+    <div class="kpi-card" title="${esc(kpiTitle)}"><div class="kpi-label">Total (théorique)</div><div class="kpi-value">${fmtEUR(totalTheorique)}</div></div>
+    <div class="kpi-card" title="${esc(kpiTitle)}"><div class="kpi-label">Taux de recouvrement</div><div class="kpi-value">${tauxRecouvrement === null ? "—" : tauxRecouvrement.toFixed(0) + " %"}</div></div>
+    <div class="kpi-card" title="${esc(kpiTitle)}"><div class="kpi-label">Délai moyen de règlement</div><div class="kpi-value">${delaiMoyen === null ? "—" : Math.round(delaiMoyen) + " j"}</div></div>
+    <div class="kpi-card" title="${esc(kpiTitle)}"><div class="kpi-label">Pénalités de retard</div><div class="kpi-value ${penalitesEnCours > 0 ? "rd" : ""}">${fmtEUR(penalitesEnCours)}</div></div>
+    <div class="kpi-card" title="${esc(kpiTitle)}"><div class="kpi-label">Estimation annuelle</div><div class="kpi-value">${fmtEUR(estimationAnnuelle)}</div></div>`;
 
   document.getElementById("kpi-dashboard").innerHTML = cards;
   /* Mémorisé pour permettre de re-tracer le graphique seul (changement de
@@ -4505,6 +4584,20 @@ function renderKpiChart(vehicules, range) {
   });
 
   const max = Math.max(1, ...mois.map(m => m.total));
+  const aucuneDonnee = mois.every(m => m.total === 0);
+
+  if (aucuneDonnee) {
+    /* Message explicite plutôt que 12 barres à 2% de hauteur, quasi
+       invisibles et facilement confondues avec un bug — retour utilisateur
+       du 09/08/2026 : "aucune barre ni donnée visible... peut faire penser
+       à un bug plutôt qu'à une absence de données". */
+    document.getElementById("kpi-chart").innerHTML = `
+      <div class="kpi-chart-empty">
+        Aucune commission encaissée sur cette période — aucun véhicule au statut "Payé" avec une date de paiement renseignée.
+      </div>`;
+    return;
+  }
+
   const html = mois.map(m => `
     <div class="kpi-chart-col">
       <div class="kpi-chart-val">${m.total > 0 ? fmtEUR(m.total) : ""}</div>
@@ -5239,9 +5332,11 @@ function renderConcessionPanel(concession, tableId, kpiId) {
 
   const COMPUTED_HEADER_HINT = "Colonne calculée automatiquement — non modifiable directement. Voir l'infobulle de chaque ligne pour le détail.";
   const isComputedHeader = h => h === "Éligibilité" || h.startsWith("Commission HT") || h.startsWith("Pénalité de retard");
-  let html = "<thead><tr>" + headers.map(h =>
-    `<th scope="col"${h === "VIN" ? ' data-col="vin"' : ""}${isComputedHeader(h) ? ` title="${esc(COMPUTED_HEADER_HINT)}"` : ""}>${h}${isComputedHeader(h) ? ' <span aria-hidden="true" style="opacity:.6;">ⓘ</span>' : ""}</th>`
-  ).join("") + "</tr></thead><tbody>";
+  const LOW_PRIORITY_HEADERS = { "Remarques": "remarques", "Dernière MAJ": "maj", "Source": "source" };
+  let html = "<thead><tr>" + headers.map(h => {
+    const colAttr = h === "VIN" ? ' data-col="vin"' : LOW_PRIORITY_HEADERS[h] ? ` data-col="${LOW_PRIORITY_HEADERS[h]}" class="col-low-priority"` : "";
+    return `<th scope="col"${colAttr}${isComputedHeader(h) ? ` title="${esc(COMPUTED_HEADER_HINT)}"` : ""}>${h}${isComputedHeader(h) ? ' <span aria-hidden="true" style="opacity:.6;">ⓘ</span>' : ""}</th>`;
+  }).join("") + "</tr></thead><tbody>";
 
   /* Filtre de recherche — n'affecte que les lignes affichées dans CE
      tableau ; les KPI ci-dessus (renderKPI, déjà appelé) restent calculés
@@ -5419,7 +5514,8 @@ function cellInput(id, field, value, editable, type) {
   }
   const val = value === null || value === undefined ? "" : value;
   const ariaLabel = field.replace(/_/g, " ");
-  return `<td class="editable"><input class="cell-input" type="${type}" step="${type === "number" ? "0.01" : ""}" data-id="${esc(id)}" data-field="${field}" value="${esc(String(val))}" aria-label="${ariaLabel}"></td>`;
+  const titleAttr = val ? ` title="${esc(String(val))}"` : "";
+  return `<td class="editable"><input class="cell-input" type="${type}" step="${type === "number" ? "0.01" : ""}" data-id="${esc(id)}" data-field="${field}" value="${esc(String(val))}" aria-label="${ariaLabel}"${titleAttr}></td>`;
 }
 
 function cellSelect(id, field, value, editable, options) {
