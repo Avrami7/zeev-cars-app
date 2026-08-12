@@ -49,14 +49,20 @@
    VARIABLES THÈME SOMBRE (défaut)
    ===================================================================== */
 :root {
-  --bg:   #0d1117; --sur: #181c27; --sur2: #1e2333; --sur3: #242b3d;
-  --brd:  rgba(255,255,255,.07); --brd2: rgba(255,255,255,.13);
-  --ac:   #4f8ef7; --ac2: #7cb3ff;
-  --gr:   #34d399; --gr-bg: rgba(52,211,153,.09);  --gr-brd: rgba(52,211,153,.25);
-  --am:   #f59e0b; --am-bg: rgba(245,158,11,.08);  --am-brd: rgba(245,158,11,.22);
-  --rd:   #f87171; --rd-bg: rgba(248,113,113,.08); --rd-brd: rgba(248,113,113,.22);
-  --tx:   #e8eaf0; --tx2: #8b92a8; --tx3: #555e78;
-  --pb:   rgba(79,142,247,.14);
+  /* Palette recalée sur les couleurs système Apple (iOS/macOS, mode sombre)
+     — demande explicite du 09/08/2026 : "reprend les couleurs Apple et les
+     espacements de la charte". Fonds systemBackground/secondarySystemBackground
+     (#1c1c1e/#2c2c2e) au lieu du noir quasi pur façon dev-tool ; systemGreen
+     #30D158, systemRed #FF453A, systemOrange #FF9F0A, systemBlue #0A84FF —
+     valeurs officielles Apple Human Interface Guidelines, pas approximées. */
+  --bg:   #1c1c1e; --sur: #2c2c2e; --sur2: #3a3a3c; --sur3: #48484a;
+  --brd:  rgba(255,255,255,.09); --brd2: rgba(255,255,255,.16);
+  --ac:   #0a84ff; --ac2: #409cff;
+  --gr:   #30d158; --gr-bg: rgba(48,209,88,.09);  --gr-brd: rgba(48,209,88,.25);
+  --am:   #ff9f0a; --am-bg: rgba(255,159,10,.09);  --am-brd: rgba(255,159,10,.24);
+  --rd:   #ff453a; --rd-bg: rgba(255,69,58,.09); --rd-brd: rgba(255,69,58,.24);
+  --tx:   #f5f5f7; --tx2: #98989d; --tx3: #636366;
+  --pb:   rgba(10,132,255,.15);
   --font: 'Syne', sans-serif;
   --mono: 'DM Mono', monospace;
   --r:    12px; --rs: 8px;
@@ -68,8 +74,8 @@
   --sh-1: 0 1px 2px rgba(0,0,0,.24);
   --sh-2: 0 8px 24px rgba(0,0,0,.28);
   --sh-3: 0 20px 48px rgba(0,0,0,.38);
-  --glow-ac: 0 0 0 1px rgba(79,142,247,.4), 0 4px 18px rgba(79,142,247,.22);
-  --glass-bg: rgba(24,28,39,.72);
+  --glow-ac: 0 0 0 1px rgba(10,132,255,.4), 0 4px 18px rgba(10,132,255,.22);
+  --glass-bg: rgba(44,44,46,.72);
   --noise-op: .035;
 }
 
@@ -77,18 +83,21 @@
    THÈME CLAIR
    ===================================================================== */
 [data-theme="light"] {
-  --bg:  #f4f6fa; --sur: #ffffff; --sur2: #f0f2f7; --sur3: #e8ebf2;
-  --brd: rgba(0,0,0,.10); --brd2: rgba(0,0,0,.18);
-  --tx:  #111827; --tx2: #374151; --tx3: #6b7280;
-  --ac:  #2563eb; --ac2: #1d4ed8;
-  --gr:  #16a34a; --gr-bg: #dcfce7; --gr-brd: #86efac;
-  --rd:  #dc2626; --rd-bg: #fee2e2; --rd-brd: #fca5a5;
-  --am:  #d97706; --am-bg: #fef3c7; --am-brd: #fcd34d;
-  --pb:  rgba(37,99,235,.08);
+  /* Couleurs système Apple, mode clair — systemGreen #34C759, systemRed
+     #FF3B30, systemOrange #FF9500, systemBlue #007AFF (valeurs HIG
+     officielles), fond systemGroupedBackground #F2F2F7. */
+  --bg:  #f2f2f7; --sur: #ffffff; --sur2: #f2f2f7; --sur3: #e5e5ea;
+  --brd: rgba(0,0,0,.10); --brd2: rgba(0,0,0,.17);
+  --tx:  #1c1c1e; --tx2: #6e6e73; --tx3: #8e8e93;
+  --ac:  #007aff; --ac2: #0058cc;
+  --gr:  #34c759; --gr-bg: #e3f8e9; --gr-brd: #8fdaa4;
+  --rd:  #ff3b30; --rd-bg: #ffe9e7; --rd-brd: #ffaba3;
+  --am:  #ff9500; --am-bg: #fff2e0; --am-brd: #ffc670;
+  --pb:  rgba(0,122,255,.09);
   --sh-1: 0 1px 2px rgba(20,30,60,.06);
   --sh-2: 0 8px 24px rgba(20,30,60,.10);
   --sh-3: 0 20px 48px rgba(20,30,60,.16);
-  --glow-ac: 0 0 0 1px rgba(37,99,235,.25), 0 4px 18px rgba(37,99,235,.14);
+  --glow-ac: 0 0 0 1px rgba(0,122,255,.25), 0 4px 18px rgba(0,122,255,.14);
   --glass-bg: rgba(255,255,255,.78);
   --noise-op: .02;
 }
@@ -443,7 +452,7 @@ body::before {
   transition: background var(--transition), color var(--transition), transform .2s var(--ease-spring);
 }
 .dialog-close:hover { background: var(--sur3); color: var(--tx); transform: rotate(90deg); }
-.dialog-body { padding: 18px 20px 22px; overflow-y: auto; max-height: calc(86vh - 56px); }
+.dialog-body { padding: 24px 28px 28px; overflow-y: auto; max-height: calc(86vh - 56px); }
 .users-table { margin-bottom: 4px; }
 
 /* ── Feux F1 ────────────────────────────────────────────────────────── */
@@ -667,7 +676,7 @@ body::before {
   backdrop-filter: blur(14px) saturate(160%);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
   border-bottom: 1px solid var(--brd);
-  padding: 9px 18px;
+  padding: 12px 22px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 10px; flex-wrap: wrap;
   position: sticky; top: 0; z-index: 100;
@@ -685,7 +694,7 @@ body::before {
 .tb-right { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .tb-sep   { width: 1px; height: 20px; background: var(--brd2); }
 .tb-btn {
-  padding: 7px 13px; border-radius: var(--rs);
+  padding: 9px 16px; border-radius: var(--rs);
   border: 1px solid var(--brd2); background: transparent;
   color: var(--tx2); font-size: 11.5px; font-weight: 600; font-family: var(--font);
   cursor: pointer;
@@ -823,7 +832,7 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 }
 .card {
   background: var(--sur); border: 1px solid var(--brd);
-  border-radius: var(--r); padding: 13px 16px;
+  border-radius: var(--r); padding: 18px 20px;
   flex: 1; min-width: 220px;
   transition: border-color .25s var(--ease), box-shadow .25s var(--ease), transform .25s var(--ease);
 }
@@ -885,7 +894,7 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
   border-radius: var(--r); margin-bottom: 16px; overflow: hidden;
 }
 .kpi-card {
-  padding: 10px 14px;
+  padding: 14px 18px;
   border-right: 1px solid var(--brd);
   transition: background .25s var(--ease), transform .2s var(--ease);
   animation: kpiPop .45s var(--ease-out) backwards;
@@ -909,7 +918,7 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 .kpi-value { font-size: 18px; font-weight: 700; color: var(--tx); font-family: var(--mono); letter-spacing: -.01em; transition: color .3s var(--ease); }
 .kpi-value.gr { color: var(--gr); }
 .kpi-value.rd { color: var(--rd); }
-.kpi-value.am { color: #c98a13; }
+.kpi-value.am { color: var(--am); }
 
 /* Tableau de bord — grille à 4 colonnes (8 cartes sur 2 lignes), plus
    pratique ici qu'à 6 colonnes fixes pour rester lisible sans surcharger. */
@@ -1052,7 +1061,7 @@ main { padding: 18px 20px 30px; max-width: 1500px; margin: 0 auto; }
 .exec-bar-bg { flex: 1; height: 6px; background: var(--sur3); border-radius: 99px; overflow: hidden; min-width: 60px; }
 .exec-bar { height: 100%; border-radius: 99px; background: var(--ac); }
 .exec-bar.green { background: var(--gr); }
-.exec-bar.amber { background: #c98a13; }
+.exec-bar.amber { background: var(--am); }
 .exec-bar.red { background: var(--rd); }
 .exec-bar-pct { font-size: 10px; font-family: var(--mono); color: var(--tx3); white-space: nowrap; }
 
@@ -1225,7 +1234,7 @@ tr:hover .badge { transform: translateY(-1px); }
 input.cell-input, select.cell-input {
   width: 100%; border: 1px solid transparent; background: transparent;
   font-size: 11.5px; font-family: var(--font);
-  padding: 4px 5px; border-radius: 5px; color: var(--tx);
+  padding: 6px 7px; border-radius: 5px; color: var(--tx);
   text-align: center;
   transition: border-color .2s var(--ease), background .2s var(--ease), box-shadow .2s var(--ease);
   cursor: pointer;
@@ -2583,8 +2592,8 @@ function computeLatePenalty(v) {
 function eligibiliteCellInner(v) {
   const eligibilite = computeEligibilite(v);
   const eligColor = eligibilite === "FACTURABLE" ? "var(--gr)" :
-                    eligibilite === "ATTENTE_LIVRAISON" ? "#c98a13" :
-                    eligibilite === "ATTENTE_PV" ? "#c98a13" : "var(--tx3)";
+                    eligibilite === "ATTENTE_LIVRAISON" ? "var(--am)" :
+                    eligibilite === "ATTENTE_PV" ? "var(--am)" : "var(--tx3)";
   const eligLabel = eligibilite === "FACTURABLE" ? "Livré — paiement à vérifier" :
                     eligibilite === "ATTENTE_LIVRAISON" ? "En attente de livraison" :
                     eligibilite === "ATTENTE_PV" ? "En attente de PV signé" : eligibilite;
