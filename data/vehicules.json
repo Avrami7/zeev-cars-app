@@ -1,6 +1,6 @@
 {
   "meta": {
-    "derniere_maj": "2026-07-20"
+    "derniere_maj": "2026-09-09"
   },
   "vehicules": [
     {
@@ -474,14 +474,14 @@
       "date_facture": "",
       "source": "",
       "maj_par": "ZEEV ",
-      "maj_le": "2026-07-10 14:52",
+      "maj_le": "2026-09-09 13:23",
       "id": "bmw-020",
       "client": "SIEMENS ENERGY SAS",
       "conducteur": "David Rodrigues",
       "modele": "iX1",
       "immat": "HL-653-GE",
-      "statut_livraison": "NON_LIVRE",
-      "date_livraison": "",
+      "statut_livraison": "LIVRE",
+      "date_livraison": "2026-06-17",
       "remarques": "Livrable le 25/06/2026 — à confirmer une fois la livraison effective."
     },
     {
