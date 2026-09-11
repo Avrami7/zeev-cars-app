@@ -1141,6 +1141,25 @@ table.data-table thead th .col-resizer {
 table.data-table thead th .col-resizer:hover,
 table.data-table thead th .col-resizer.resizing { background: var(--ac); opacity: .5; }
 
+/* Ligne de filtres par colonne — juste sous les en-têtes. Un champ texte ou
+   une liste déroulante par colonne filtrable ; les colonnes non filtrables
+   (N°, Facture, Retirer...) restent une cellule vide. Purement du filtrage
+   d'affichage : n'a aucun effet sur les KPI ni sur les données envoyées au
+   Worker (même principe que la recherche globale, cf. renderConcessionPanel). */
+table.data-table thead tr.filter-row th {
+  padding: 4px 5px; text-transform: none; letter-spacing: normal;
+  font-weight: 400; background: var(--sur);
+}
+table.data-table thead tr.filter-row .col-filter {
+  width: 100%; box-sizing: border-box; font-size: 11px; font-family: var(--font);
+  padding: 3px 5px; border: 1px solid var(--brd2); border-radius: 5px;
+  background: var(--bg); color: var(--tx);
+  outline: none; transition: border-color var(--transition), box-shadow var(--transition);
+}
+table.data-table thead tr.filter-row .col-filter:focus {
+  border-color: var(--ac); box-shadow: 0 0 0 2px var(--pb);
+}
+
 table.data-table tbody td {
   padding: 7px 8px;
   border: 1px solid var(--brd);
@@ -2030,7 +2049,7 @@ const CONFIG = {
    UNIQUEMENT aux comptes en scope "FULL" — absent (undefined) pour un
    compte "LIVRAISON_ONLY", qui ne peut donc techniquement pas y accéder.
    ===================================================================== */
-const state = { user: null, sessionToken: null, data: null, contracts: null, dirty: false, tableSearch: {} };
+const state = { user: null, sessionToken: null, data: null, contracts: null, dirty: false, tableSearch: {}, columnFilters: {} };
 
 function isApiConfigured() {
   return CONFIG.apiBase && !CONFIG.apiBase.includes("VOTRE-SOUS-DOMAINE");
@@ -3345,6 +3364,9 @@ function panelTemplate(key, isActive) {
         <input type="search" class="table-search" id="search-${slug}"
           placeholder="Rechercher : client, conducteur, modèle, immat, VIN, n° contrat, n° facture..."
           aria-label="Rechercher un véhicule dans ${label}">
+        <button type="button" class="tb-btn sm clear-col-filters-btn" data-concession="${esc(key)}" title="Effacer tous les filtres par colonne">
+          ✕ Filtres par colonne
+        </button>
         <button type="button" class="tb-btn sm archived-toggle-btn" id="archived-toggle-${slug}" data-concession="${esc(key)}" data-list-id="archived-list-${slug}">
           🗑 Véhicules retirés
         </button>
@@ -4154,6 +4176,43 @@ function setupTabs() {
       state.tableSearch[key] = el.value;
       renderConcessionPanel(key, `table-${slug}`, `kpi-${slug}`);
     }
+  });
+
+  /* Filtres par colonne — même principe de délégation que la recherche
+     globale ci-dessus, mais un champ par colonne (data-field). Comme le
+     re-rendu remplace tout le <thead> (donc le champ en cours de saisie),
+     on restaure le focus + la position du curseur sur le nouveau champ après
+     coup pour ne pas interrompre la frappe. */
+  document.addEventListener("input", (e) => {
+    const el = e.target;
+    if (!el.classList || !el.classList.contains("col-filter")) return;
+    const concession = el.dataset.concession;
+    const field = el.dataset.field;
+    if (!concession || !field) return;
+    if (!state.columnFilters[concession]) state.columnFilters[concession] = {};
+    state.columnFilters[concession][field] = el.value;
+    const selStart = el.selectionStart, selEnd = el.selectionEnd;
+    const slug = slugFor(concession);
+    renderConcessionPanel(concession, `table-${slug}`, `kpi-${slug}`);
+    const newEl = document.querySelector(
+      `.col-filter[data-concession="${CSS.escape(concession)}"][data-field="${CSS.escape(field)}"]`);
+    if (newEl) {
+      newEl.focus();
+      if (typeof selStart === "number" && newEl.setSelectionRange) {
+        try { newEl.setSelectionRange(selStart, selEnd); } catch (_) {}
+      }
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".clear-col-filters-btn");
+    if (!btn) return;
+    const concession = btn.dataset.concession;
+    if (!concession || !state.columnFilters[concession] ||
+        Object.keys(state.columnFilters[concession]).length === 0) return;
+    state.columnFilters[concession] = {};
+    const slug = slugFor(concession);
+    renderConcessionPanel(concession, `table-${slug}`, `kpi-${slug}`);
   });
 
 /* Bascule animée (hauteur + fondu, ressort) de la liste des véhicules
@@ -5299,6 +5358,33 @@ function vehicleMatchesSearch(v, term) {
   return haystack.includes(term);
 }
 
+/* Filtres par colonne (state.columnFilters) — combinés en ET entre eux, et
+   en ET avec la recherche globale (vehicleMatchesSearch). `row` porte le
+   véhicule brut plus les valeurs dérivées déjà calculées pour l'affichage
+   (commission, éligibilité, pénalité), pour ne pas les recalculer ici. */
+function rowMatchesColumnFilters(row, filters) {
+  const { v, commission, eligibilite, penalty } = row;
+  return Object.entries(filters).every(([field, rawVal]) => {
+    const val = (rawVal || "").toString().trim();
+    if (!val) return true;
+    switch (field) {
+      case "statut_livraison":
+      case "pv_signe":
+      case "statut_paiement":
+      case "statut_facturation":
+        return (v[field] || "") === val;
+      case "eligibilite":
+        return eligibilite === val;
+      case "commission":
+        return fmtEUR(commission).toLowerCase().includes(val.toLowerCase());
+      case "penalite":
+        return (penalty ? fmtEUR(penalty.total) : "").toLowerCase().includes(val.toLowerCase());
+      default:
+        return (v[field] || "").toString().toLowerCase().includes(val.toLowerCase());
+    }
+  });
+}
+
 function renderConcessionPanel(concession, tableId, kpiId) {
   const vehicules         = getVehicules(concession);
   /* Simulation = aucun contrat verrouillé (locked === true) transmis par le
@@ -5327,17 +5413,41 @@ function renderConcessionPanel(concession, tableId, kpiId) {
      (traçabilité auto). Tout le reste se modifie en cliquant dans la cellule. */
   const canEdit = true;
 
-  const headers = restricted
-    ? ["N°", "Client", "Loueur", "Conducteur", "Modèle / Version", "Immat.", "VIN",
-       "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
-       "N° de contrat", "Éligibilité facturation", "Remarques", "Dernière MAJ", "Retirer"]
-    : ["N°", "Client", "Loueur", "Conducteur", "Modèle / Version", "Immat.", "VIN",
-       "Statut livraison", "Date livraison (effective ou estimée)", "PV de mise à disposition signé", "Date PV signé",
-       "Valeur de vente du véhicule HT (€)",
-       "Statut paiement", "Date paiement reçu", "Statut facturation", "N° facture", "Date facture",
-       simulation ? "Commission HT (simulation)" : "Commission HT",
-       ...(simulation ? [] : ["Pénalité de retard (Art.8)"]),
-       "N° de contrat", "Éligibilité facturation", "Facture", "Remarques", "Dernière MAJ", "Retirer"];
+  /* Colonnes : chaque entrée porte à la fois son en-tête d'affichage et sa
+     définition de filtre (`filter: null` pour les colonnes non filtrables —
+     N°, Facture, Retirer... — sinon "text" ou "select"). Une seule source de
+     vérité pour headers + ligne de filtres, pour être certain que les deux
+     restent alignées colonne par colonne. */
+  const cols = [
+    { header: "N°", filter: null },
+    { header: "Client", field: "client", filter: "text" },
+    { header: "Loueur", field: "loueur", filter: "text" },
+    { header: "Conducteur", field: "conducteur", filter: "text" },
+    { header: "Modèle / Version", field: "modele", filter: "text" },
+    { header: "Immat.", field: "immat", filter: "text" },
+    { header: "VIN", field: "vin", filter: "text" },
+    { header: "Statut livraison", field: "statut_livraison", filter: "select", options: LABELS.statut_livraison },
+    { header: "Date livraison (effective ou estimée)", field: "date_livraison", filter: "text" },
+    { header: "PV de mise à disposition signé", field: "pv_signe", filter: "select", options: LABELS.pv_signe },
+    { header: "Date PV signé", field: "date_pv_signe", filter: "text" },
+    ...(restricted ? [] : [
+      { header: "Valeur de vente du véhicule HT (€)", field: "valeur_vente_ht", filter: "text" },
+      { header: "Statut paiement", field: "statut_paiement", filter: "select", options: LABELS.statut_paiement },
+      { header: "Date paiement reçu", field: "date_paiement", filter: "text" },
+      { header: "Statut facturation", field: "statut_facturation", filter: "select", options: LABELS.statut_facturation },
+      { header: "N° facture", field: "numero_facture", filter: "text" },
+      { header: "Date facture", field: "date_facture", filter: "text" },
+      { header: simulation ? "Commission HT (simulation)" : "Commission HT", field: "commission", filter: "text" },
+      ...(simulation ? [] : [{ header: "Pénalité de retard (Art.8)", field: "penalite", filter: "text" }]),
+    ]),
+    { header: "N° de contrat", field: "numero_contrat", filter: "text" },
+    { header: "Éligibilité facturation", field: "eligibilite", filter: "select", options: LABELS.eligibilite },
+    ...(restricted ? [] : [{ header: "Facture", filter: null }]),
+    { header: "Remarques", field: "remarques", filter: "text" },
+    { header: "Dernière MAJ", filter: null },
+    { header: "Retirer", filter: null },
+  ];
+  const headers = cols.map(c => c.header);
 
   const COMPUTED_HEADER_HINT = "Colonne calculée automatiquement — non modifiable directement. Voir l'infobulle de chaque ligne pour le détail.";
   const isComputedHeader = h => h === "Éligibilité" || h.startsWith("Commission HT") || h.startsWith("Pénalité de retard");
@@ -5345,24 +5455,49 @@ function renderConcessionPanel(concession, tableId, kpiId) {
   let html = "<thead><tr>" + headers.map(h => {
     const colAttr = h === "VIN" ? ' data-col="vin"' : LOW_PRIORITY_HEADERS[h] ? ` data-col="${LOW_PRIORITY_HEADERS[h]}" class="col-low-priority"` : "";
     return `<th scope="col"${colAttr}${isComputedHeader(h) ? ` title="${esc(COMPUTED_HEADER_HINT)}"` : ""}>${h}${isComputedHeader(h) ? ' <span aria-hidden="true" style="opacity:.6;">ⓘ</span>' : ""}</th>`;
-  }).join("") + "</tr></thead><tbody>";
+  }).join("");
 
-  /* Filtre de recherche — n'affecte que les lignes affichées dans CE
-     tableau ; les KPI ci-dessus (renderKPI, déjà appelé) restent calculés
-     sur l'intégralité des véhicules, jamais sur le sous-ensemble filtré. */
+  /* Ligne de filtres par colonne — champ texte ou liste déroulante selon la
+     colonne, valeur restaurée depuis state.columnFilters au re-rendu. */
+  const colFilters = state.columnFilters[concession] || {};
+  html += "<tr class=\"filter-row\">" + cols.map(c => {
+    if (!c.filter) return "<th></th>";
+    const val = colFilters[c.field] || "";
+    if (c.filter === "select") {
+      const opts = Object.entries(c.options).map(([k, label]) =>
+        `<option value="${esc(k)}"${val === k ? " selected" : ""}>${esc(label)}</option>`).join("");
+      return `<th><select class="col-filter" data-concession="${esc(concession)}" data-field="${esc(c.field)}" aria-label="Filtrer ${esc(c.header)}"><option value="">Tous</option>${opts}</select></th>`;
+    }
+    return `<th><input type="text" class="col-filter" data-concession="${esc(concession)}" data-field="${esc(c.field)}" value="${esc(val)}" placeholder="Filtrer…" aria-label="Filtrer ${esc(c.header)}"></th>`;
+  }).join("") + "</tr>";
+
+  html += "</thead><tbody>";
+
+  /* Filtres — n'affectent que les lignes affichées dans CE tableau ; les KPI
+     ci-dessus (renderKPI, déjà appelé) restent calculés sur l'intégralité
+     des véhicules, jamais sur le sous-ensemble filtré. On calcule d'abord
+     les valeurs dérivées (commission, éligibilité, pénalité) pour pouvoir
+     filtrer dessus, puis on les réutilise telles quelles à l'affichage. */
   const searchTerm = (state.tableSearch[concession] || "").trim().toLowerCase();
-  const displayedVehicules = searchTerm
-    ? vehicules.filter(v => vehicleMatchesSearch(v, searchTerm))
-    : vehicules;
+  const hasColFilters = Object.values(colFilters).some(v => (v || "").toString().trim() !== "");
 
-  if (searchTerm && displayedVehicules.length === 0) {
-    html += `<tr><td colspan="${headers.length}" style="text-align:center; padding:24px; color:var(--tx3); font-size:12px;">Aucun véhicule ne correspond à "${esc(searchTerm)}".</td></tr>`;
+  let displayedRows = vehicules.map(v => ({
+    v,
+    commission: simulation ? computeCommissionSimulation(v) : computeCommission(v),
+    eligibilite: computeEligibilite(v),
+    penalty: simulation ? null : computeLatePenalty(v),
+  }));
+  if (searchTerm) displayedRows = displayedRows.filter(r => vehicleMatchesSearch(r.v, searchTerm));
+  if (hasColFilters) displayedRows = displayedRows.filter(r => rowMatchesColumnFilters(r, colFilters));
+
+  if ((searchTerm || hasColFilters) && displayedRows.length === 0) {
+    const noMatchMsg = searchTerm
+      ? `Aucun véhicule ne correspond à "${esc(searchTerm)}".`
+      : "Aucun véhicule ne correspond aux filtres sélectionnés.";
+    html += `<tr><td colspan="${headers.length}" style="text-align:center; padding:24px; color:var(--tx3); font-size:12px;">${noMatchMsg}</td></tr>`;
   }
 
-  displayedVehicules.forEach((v, i) => {
-    /* En simulation, affiche la commission dès que la valeur est renseignée */
-    const commission = simulation ? computeCommissionSimulation(v) : computeCommission(v);
-    const eligibilite = computeEligibilite(v);
+  displayedRows.forEach(({ v, commission, eligibilite, penalty }, i) => {
     const canInvoice  = !simulation && eligibilite === "FACTURABLE";
     const invoiceTitle = canInvoice
       ? "Imprimer la facture de commission pour ce véhicule"
@@ -5403,7 +5538,6 @@ function renderConcessionPanel(concession, tableId, kpiId) {
 
       html += `<td class="num" data-col="commission" title="Calculé automatiquement : Valeur de vente HT × taux contractuel, uniquement si le véhicule est Facturable (voir Éligibilité).">${fmtEUR(commission)}</td>`;
       if (!simulation) {
-        const penalty = computeLatePenalty(v);
         const penaltyHint = penalty
           ? `Échéance dépassée le ${esc(fmtDateISOtoFR(penalty.echeanceISO))} (Art.8 : 15 jours à compter de la date de facture). ` +
             `${penalty.joursRetard} jour(s) de retard × taux plancher légal (3× taux d'intérêt légal professionnels en vigueur, Art. L441-10 Code de commerce) ` +
